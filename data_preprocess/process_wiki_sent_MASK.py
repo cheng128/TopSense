@@ -1,9 +1,10 @@
 import json
+import random
 from tqdm import tqdm
 from utils import handle_examples
 
 def load_data():
-    with open('../data/wiki/wiki_word_id2sents.json') as f:
+    with open('../data/wiki/t5-xl_wiki_word_id2sents.json') as f:
         word_id2sents = json.loads(f.read())
     
     with open('../data/remap.word_id.topics.examples.json') as f:
@@ -14,12 +15,14 @@ def load_data():
 def main():
     word_id2sents, word_id2topics = load_data()
     
-    with open('../data/training_data/wiki_link_sent_masked.tsv', 'a') as f:
+    with open('../data/training_data/10-t5-xl_wiki_link_sent_masked.tsv', 'a') as f:
         for key, value in tqdm(word_id2sents.items()):
             if key in word_id2topics:
                 topics = word_id2topics[key]['topics']
                 headword = value[0]
                 sentences = value[-1]
+                if len(sentences) > 10:
+                    sentences = random.sample(sentences, 10)
                 for topic in list(set(topics)):
                     topic = '['+ topic +']'
                     for sent_en in sentences:
