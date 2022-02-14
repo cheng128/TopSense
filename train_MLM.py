@@ -34,13 +34,8 @@ def load_preprocessed(filename):
     with open('./data/' + filename) as f:
         for line in f.readlines():
             pieces = line.split('\t')
-            try:
-                if float(pieces[3]) > 0.3:
-                    topic_sent.append(pieces[1])
-                    masked_sent.append(pieces[2])
-            except:
-                topic_sent.append(pieces[1])
-                masked_sent.append(pieces[2])
+            topic_sent.append(pieces[1])
+            masked_sent.append(pieces[2])
     return topic_sent, masked_sent
 
 def main():
@@ -52,10 +47,10 @@ def main():
     parser.add_argument('--save', action="store_true")
     args = parser.parse_args()
     
-    map_dict = {'cam': 'cambridge', 'brt': 'brt', 'wiki': 'wikipedia'}
+    map_dict = {'lr': 'lr_5e-6', 'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat'}
     
     if args.save:
-        dir_path = f'./model/{map_dict[args.g]}/{args.t}_{args.e}epochs'
+        dir_path = f'./model/{map_dict[args.g]}/concat_{args.t}_{args.e}epochs'
         try:
             os.mkdir(dir_path)
         except:
@@ -72,7 +67,9 @@ def main():
     print("use tokenizer:", tokenizer_name)
     
     model = BertForMaskedLM.from_pretrained('bert-base-uncased')
-#     model = BertForMaskedLM.from_pretrained('./model/brt/remap_10epochs')
+#     pretrain = './model/wikipedia/20-t5-xl_remap_10epochs_base0'
+#     print('from pretrain: ', pretrain)
+#     model = BertForMaskedLM.from_pretrained(pretrain)
     # must implement
     model.resize_token_embeddings(len(tokenizer))
     
@@ -96,13 +93,13 @@ def main():
 
     dataset = TopicDataset(inputs)
 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True)
     print('after dataloader')
     
     model.to(device)
     model.train()
 
-    optim = AdamW(model.parameters(), lr=5e-5)
+    optim = AdamW(model.parameters(), lr=1e-5)
     print('before train')
     for epoch in range(args.e):
         loop = tqdm(dataloader, leave=True)
@@ -122,7 +119,8 @@ def main():
     if args.save:
         model.save_pretrained(dir_path)
         with open(f'{dir_path}/spec.txt', 'w') as f:
-            f.write('training file: ' + args.f + '\n tokenizer: ' + args.t + '\n ')
+            f.write('training file: ' + args.f + '\n tokenizer: ' + args.t + 
+                    't5-xl' + '\n ')
             
             
 if __name__ == '__main__':
