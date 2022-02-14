@@ -12,7 +12,6 @@ do not calculate similarity between guide word and category then / 2
 import csv
 import json
 import argparse
-import queue as Q
 from tqdm import tqdm
 from collections import defaultdict
 from sentence_transformers import SentenceTransformer, util
@@ -28,7 +27,8 @@ class Remap():
         
         self.pos_map = {'adj': 'adjective', 'adv':'adverb',
                         'noun': 'noun', 'verb': 'verb'}
-        self.model = SentenceTransformer('all-roberta-large-v1')
+#         self.model = SentenceTransformer('all-roberta-large-v1')
+        self.model = SentenceTransformer('sentence-t5-xl')
     
     def init_args(self, args):
         self.args_way = args.c
@@ -139,6 +139,7 @@ class Remap():
             if guideword and self.args_guideword:
                 self.local_related.append(guideword[1:-1])
                 self.global_related.append(guideword[1:-1])
+                self.local_related.append(sense['headword'])
             self.local_related = list(set(self.local_related))
             self.global_related = list(set(self.global_related))
     
