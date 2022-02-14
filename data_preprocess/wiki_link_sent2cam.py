@@ -10,9 +10,9 @@ from tqdm import tqdm
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from sentence_transformers import SentenceTransformer, util
-import pdb
 
-model = SentenceTransformer('all-roberta-large-v1')
+# model = SentenceTransformer('all-roberta-large-v1')
+model = SentenceTransformer('sentence-t5-xl')
 tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 lemmatizer = nltk.stem.wordnet.WordNetLemmatizer()
 wiki_wiki = wikipediaapi.Wikipedia(language='en')
@@ -28,7 +28,7 @@ def load_data():
     with open('../data/cam_def2id_word.json') as f:
         def2id = json.loads(f.read())
     
-    with open('../data/definition_emb.pickle', 'rb') as f:
+    with open('../data/t5-xl_def_examples_emb.pickle', 'rb') as f:
         def_emb_dict = pickle.load(f)
         
     with open('../data/wiki/wiki_href_word2sents.json') as f:
@@ -56,15 +56,7 @@ def cal_similarity(first_sent, sense, def_emb_dict):
     #Compute cosine-similarities for each sentence with each other sentence
     cosine_scores = util.cos_sim(embeddings, def_embs)
 
-    #Find the pairs with the highest cosine similarity scores
-    similarity = 0
-    for j in range(1, len(def_embs)):
-#         pairs.append({'index': [0, j], 'score': cosine_scores[0][j]})
-        similarity += cosine_scores[0][j]
-    
-    avg = similarity / len(def_embs)
-    pdb.set_trace()
-    return avg
+    return cosine_scores[0][0]
 
 def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict):
     
@@ -110,8 +102,8 @@ def main():
             word_id, score = href_word2id[href_word]
             word_id2sents[word_id] = [href_word[1], score, sents]
 
-#     with open('../data/wiki/wiki_word_id2sents.json', 'w') as f:
-#         f.write(json.dumps(word_id2sents))
+    with open('../data/wiki/t5-xl_wiki_word_id2sents.json', 'w') as f:
+        f.write(json.dumps(word_id2sents))
                     
 
 if __name__ == '__main__':
