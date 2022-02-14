@@ -27,8 +27,8 @@ class Remap():
         
         self.pos_map = {'adj': 'adjective', 'adv':'adverb',
                         'noun': 'noun', 'verb': 'verb'}
-#         self.model = SentenceTransformer('all-roberta-large-v1')
-        self.model = SentenceTransformer('sentence-t5-xl')
+        self.model = SentenceTransformer('all-roberta-large-v1')
+#         self.model = SentenceTransformer('sentence-t5-xl')
     
     def init_args(self, args):
         self.args_way = args.c
