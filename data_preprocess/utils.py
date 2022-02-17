@@ -34,7 +34,7 @@ def handle_examples(headword, sent_en, topic, reserve=False):
 
         if find and count == 0:
             if reserve:
-                reconstruct.append(word + '[MASK]')
+                reconstruct.append(word + ' [MASK]')
                 topic_construct.append(word + f'{topic}')
             else:
                 reconstruct.append('[MASK]')
