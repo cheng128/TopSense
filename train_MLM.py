@@ -45,12 +45,18 @@ def main():
     parser.add_argument('-g', type=str) #
     parser.add_argument('-t', type=str) # tokenizer
     parser.add_argument('--save', action="store_true")
+    parser.add_argument('-n', type=str)
+    parser.add_argument('-r', type=int)
     args = parser.parse_args()
     
-    map_dict = {'lr': 'lr_5e-6', 'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat'}
+    if args.r:
+        reserve = 'True'
+    else:
+        reserve = 'False'
+    map_dict = {'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat'}
     
     if args.save:
-        dir_path = f'./model/{map_dict[args.g]}/concat_{args.t}_{args.e}epochs'
+        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_{args.t}_{args.e}epochs'
         try:
             os.mkdir(dir_path)
         except:
@@ -67,6 +73,8 @@ def main():
     print("use tokenizer:", tokenizer_name)
     
     model = BertForMaskedLM.from_pretrained('bert-base-uncased')
+    
+#     from wiki base pretrained model
 #     pretrain = './model/wikipedia/20-t5-xl_remap_10epochs_base0'
 #     print('from pretrain: ', pretrain)
 #     model = BertForMaskedLM.from_pretrained(pretrain)
@@ -94,13 +102,12 @@ def main():
     dataset = TopicDataset(inputs)
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True)
-    print('after dataloader')
     
     model.to(device)
     model.train()
 
     optim = AdamW(model.parameters(), lr=1e-5)
-    print('before train')
+#     optim = AdamW(model.parameters(), lr=1e-6)
     for epoch in range(args.e):
         loop = tqdm(dataloader, leave=True)
         for batch in loop:
