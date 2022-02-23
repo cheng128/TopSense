@@ -41,10 +41,10 @@ def brt_groups_results(reserve=False):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-r', type=bool)
+    parser.add_argument('-r', type=int)
     args = parser.parse_args()
-    
-    brt_groups_results(args.r)
+    reserve = bool(args.r)
+    brt_groups_results(reserve)
     
 
 if __name__ == '__main__':

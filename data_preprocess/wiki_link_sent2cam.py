@@ -25,10 +25,7 @@ def load_data():
     with open('../data/words2defs.json') as f:
         word2def = json.loads(f.read())
     
-    with open('../data/cam_def2id_word.json') as f:
-        def2id = json.loads(f.read())
-    
-    with open('../data/t5-xl_def_examples_emb.pickle', 'rb') as f:
+    with open('../data/t5-xl_def_emb.pickle', 'rb') as f:
         def_emb_dict = pickle.load(f)
         
     with open('../data/wiki/wiki_href_word2sents.json') as f:
@@ -36,6 +33,15 @@ def load_data():
         
     with open('../data/wiki/wiki_href2def.json') as f:
         href2def = json.loads(f.read())
+    
+    with open('../data/cambridge.sense.000.jsonl') as f:
+        cambridge = [json.loads(line) for line in f.readlines()]
+        
+    def2id = defaultdict(list)
+    for data in cambridge:
+        if data['pos'] == 'noun':
+            def2id[data['en_def']].append({'headword': data['headword'],
+                                           'id': data['id']})
     
     return word2def, def2id, def_emb_dict, href2word_sents, href2def
 
@@ -63,8 +69,10 @@ def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict):
     # all senses of this word
     definitions = word2def[word]
     if len(definitions) == 1:
-        word_id = def2id[definitions[0]]['id']
-        return word_id, 1
+        sense = definitions[0]
+        similarity = cal_similarity(first_sent, sense, def_emb_dict)
+        word_id = def2id[sense][0]['id']
+        return word_id, similarity
     else:
         word_id = None
         max_similarity = float('-inf')
@@ -75,7 +83,9 @@ def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict):
             if similarity > max_similarity:
                 max_similarity = similarity
                 proper_sense = sense
-                word_id = def2id[proper_sense]['id']
+                for data in def2id[proper_sense]:
+                    if data['headword'] == word:
+                        word_id = data['id']
         return word_id, max_similarity
 
 def process_sent(href2def, href_word2sents, word2def, def2id, def_emb_dict):
@@ -102,7 +112,7 @@ def main():
             word_id, score = href_word2id[href_word]
             word_id2sents[word_id] = [href_word[1], score, sents]
 
-    with open('../data/wiki/t5-xl_wiki_word_id2sents.json', 'w') as f:
+    with open('../data/wiki/fix_t5-xl_wiki_word_id2sents.json', 'w') as f:
         f.write(json.dumps(word_id2sents))
                     
 
