@@ -43,21 +43,17 @@ def main():
     parser.add_argument('-e', help="#epochs", type=int)
     parser.add_argument('-f', type=str) # preprocess file name
     parser.add_argument('-g', type=str) #
-    parser.add_argument('-t', type=str) # tokenizer
     parser.add_argument('--save', action="store_true")
     parser.add_argument('-n', type=str)
     parser.add_argument('-r', type=int)
     args = parser.parse_args()
     
-    if args.r:
-        reserve = 'True'
-    else:
-        reserve = 'False'
+    reserve = bool(args.r)
         
     map_dict = {'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat'}
     
     if args.save:
-        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_{args.t}_{args.e}epochs'
+        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_remap_{args.e}epochs_base10'
         try:
             os.mkdir(dir_path)
         except:
@@ -65,15 +61,12 @@ def main():
             os.mkdir(dir_path)
         print('model will be saved in: ', dir_path)
         
-    if args.t == 'remap':
-        tokenizer_name = 'remap_tokenizer'
-    else:
-        tokenizer_name = 'fast_tokenizer'
-        
+    tokenizer_name = 'remap_tokenizer'
     tokenizer = BertTokenizerFast.from_pretrained(tokenizer_name)
     print("use tokenizer:", tokenizer_name)
     
-    pretrain = './model/brt/remap_10epochs'
+    pretrain = f'./model/brt/cambridge_{reserve}_remap_10epochs'
+    print('from pretrain:', pretrain)
     model = BertForMaskedLM.from_pretrained(pretrain)
     # must implement
     model.resize_token_embeddings(len(tokenizer))
@@ -104,6 +97,7 @@ def main():
     model.train()
 
     optim = AdamW(model.parameters(), lr=1e-5)
+    loss_record = []
 #     optim = AdamW(model.parameters(), lr=1e-6)
     for epoch in range(args.e):
         loop = tqdm(dataloader, leave=True)
@@ -119,12 +113,15 @@ def main():
             optim.step()
             loop.set_description(f'Epoch {epoch}')
             loop.set_postfix(loss=loss.item()) 
+        loss_record.append([str(epoch), str(loss)])
     
     if args.save:
         model.save_pretrained(dir_path)
         with open(f'{dir_path}/spec.txt', 'w') as f:
-            f.write('training file: ' + args.f + '\n tokenizer: ' + args.t + 
-                    't5-xl' + '\n pretrain:' + pretrain)
+            f.write(f'python train_MLM_wiki.py -e {args.e} -g {args.g} -f {args.f} -n {args.n} -r {args.r}\n')
+            f.write('pretrain:' + pretrain + '\n')
+            for loss in loss_record:
+                f.write('\t'.join(loss) + '\n')
             
             
 if __name__ == '__main__':

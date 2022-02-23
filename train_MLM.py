@@ -42,21 +42,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', help="#epochs", type=int)
     parser.add_argument('-f', type=str) # preprocess file name
-    parser.add_argument('-g', type=str) #
-    parser.add_argument('-t', type=str) # tokenizer
+    parser.add_argument('-g', type=str) # directoy
     parser.add_argument('--save', action="store_true")
     parser.add_argument('-n', type=str)
     parser.add_argument('-r', type=int)
     args = parser.parse_args()
     
-    if args.r:
-        reserve = 'True'
-    else:
-        reserve = 'False'
+    reserve = bool(args.r)
+
     map_dict = {'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat'}
     
     if args.save:
-        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_{args.t}_{args.e}epochs'
+        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_remap_{args.e}epochs'
         try:
             os.mkdir(dir_path)
         except:
@@ -64,10 +61,7 @@ def main():
             os.mkdir(dir_path)
         print('model will be saved in: ', dir_path)
         
-    if args.t == 'remap':
-        tokenizer_name = 'remap_tokenizer'
-    else:
-        tokenizer_name = 'fast_tokenizer'
+    tokenizer_name = 'remap_tokenizer'
         
     tokenizer = BertTokenizerFast.from_pretrained(tokenizer_name)
     print("use tokenizer:", tokenizer_name)
@@ -108,6 +102,7 @@ def main():
 
     optim = AdamW(model.parameters(), lr=1e-5)
 #     optim = AdamW(model.parameters(), lr=1e-6)
+    loss_record = []
     for epoch in range(args.e):
         loop = tqdm(dataloader, leave=True)
         for batch in loop:
@@ -122,12 +117,14 @@ def main():
             optim.step()
             loop.set_description(f'Epoch {epoch}')
             loop.set_postfix(loss=loss.item()) 
+        loss_record.append([str(epoch), str(float(loss))])
     
     if args.save:
         model.save_pretrained(dir_path)
         with open(f'{dir_path}/spec.txt', 'w') as f:
-            f.write('training file: ' + args.f + '\n tokenizer: ' + args.t + 
-                    't5-xl' + '\n ')
+            f.write(f'python train_MLM.py -e {args.e} -g {args.g} -f {args.f} -n {args.n} -r {args.r}\n')
+            for loss in loss_record:
+                f.write('\t'.join(loss) + '\n')
             
             
 if __name__ == '__main__':
