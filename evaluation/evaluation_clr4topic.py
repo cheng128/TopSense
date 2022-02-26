@@ -1,3 +1,5 @@
+import sys
+import pdb
 import json
 import pickle
 import spacy
@@ -10,6 +12,11 @@ from tqdm import tqdm
 from collections import defaultdict
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer, util
+
+sys.path.append('../')
+from CLR4Topic.CLR4Topic.predictors.topic_predictor import TopicPredictor
+from CLR4Topic.CLR4Topic.models.topic_classifier import TopicClassifier
+from CLR4Topic.CLR4Topic.dataset_readers.example_reader import ExampleReader
 
 m = nn.Softmax(dim=0)
 
@@ -38,11 +45,6 @@ def load_ans():
         sent2ans = json.loads(f.read())
     return sent2ans
 
-def load_mfs_data():
-    with open('./data/first_sense.json') as f:
-        mfs_data = json.loads(f.read())
-    return mfs_data
-
 def load_emb():
     filename = '../data/topic_embs.pickle'
     print('load emb file: ', filename)
@@ -51,16 +53,11 @@ def load_emb():
         emb_map = pickle.load(f)
     return emb_map
             
-def load_model(model):
-    model_path = f"../model/{model}"
-    print('model: ', model_path)
-
-    tokenizer = "../remap_tokenizer"
-    nlp = pipeline('fill-mask',
-           model=model_path,
-           tokenizer=tokenizer)
-
-    return nlp
+def load_model():
+    predictor = TopicPredictor.from_path('../CLR4Topic/trained_models/v2_2ep/model.tar.gz',
+                                         'topic_predictor')
+    
+    return predictor
 
 def load_spacy_sbert():
     model = SentenceTransformer('all-roberta-large-v1')
@@ -82,8 +79,7 @@ def reweight_prob(prob):
     return float(reweighted_probs[0])
 
 def process(sent, sbert, spacy_model, targetword, token_score, 
-            word2defs, emb_map, def2guideword, reserve, 
-            sentence_only, topic_only, reweight):
+            word2defs, emb_map, def2guideword, reweight):
     try:
         word = spacy_model(targetword)[0].lemma_
     except:
@@ -105,11 +101,6 @@ def process(sent, sbert, spacy_model, targetword, token_score,
     for j in range(1, len(cos_scores)):
         def_sent_score[sentence_defs[j]]  = 1 - np.arccos(min(float(cos_scores[0][j].cpu()), 1)) / np.pi
     
-    # if it is sentence_only
-    if sentence_only:
-        sorted_score = sorted(def_sent_score.items(), key=lambda x: x[1], reverse=True)
-        return sorted_score
-    
     # calculate cosine similarity score between topics and definitions
     weight_score = {}
     for sense in guide_def:
@@ -129,24 +120,18 @@ def process(sent, sbert, spacy_model, targetword, token_score,
                     elif score == max_score and token_score[topic] > max_confidence:
                         max_topic = topic
                         max_confidence = token_score[topic]
-        
-        
+
         if reweight:
             confidence =  reweight_prob(token_score[max_topic])
         else:
             confidence =  token_score[max_topic]
 
-        if sentence_only:
-            weight_score[sense] = def_sent_score[sense]
-        elif topic_only:
-            weight_score[sense] = confidence * max_score
-        else:
-            weight_score[sense] = confidence * max_score + (1-confidence) * def_sent_score[sense]
+        weight_score[sense] = confidence * max_score #+ (1-confidence) * def_sent_score[sense]
     
     result = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
     return result
 
-def handle_examples(nlp, headword, sent_en, reserve=False):
+def handle_examples(nlp, headword, sent_en):
     reconstruct = []
     doc = nlp(sent_en)
     
@@ -162,10 +147,7 @@ def handle_examples(nlp, headword, sent_en, reserve=False):
             find = True
 
         if find and count == 0:
-            if reserve:
-                reconstruct.append(word + ' [MASK]')
-            else:
-                reconstruct.append('[MASK]')
+            reconstruct.append(f'[{token.text}]')
             count += 1
             continue
         
@@ -174,82 +156,46 @@ def handle_examples(nlp, headword, sent_en, reserve=False):
     masked_sent = ' '.join(reconstruct)
     return masked_sent 
 
-def write_data(mfs_bool, sentence_only, input_sent, targetword,
+def write_data(input_sent, targetword,
                ans, senses, topics, save_file):
 
-    if sentence_only or mfs_bool:
-        write_data = input_sent + '\t' + targetword + '\t' +\
-        ans + '\t' + '\t'.join(senses) + '\n'
-    else:
-        if len(topics) != 5:
-            topics += [''] * (5 - len(topics))
-    
-        write_data = input_sent + '\t' + targetword + '\t' +\
-        '\t'.join(topics) + '\t' + ans + '\t' + '\t'.join(senses) + '\n'
+    if len(topics) != 5:
+        topics += [''] * (5 - len(topics))
+
+    write_data = input_sent + '\t' + targetword + '\t' +\
+    '\t'.join(topics) + '\t' + ans + '\t' + '\t'.join(senses) + '\n'
 
     with open(save_file, 'a') as f:
         f.write(write_data)
 
-def print_info(mfs_bool, topic_only, reweight, reserve, sentence_only):
-    print('Is most frequent sense: ', mfs_bool)
-    print('Is topic only: ', topic_only)
-    print('Is sentence_only: ', sentence_only)
+def print_info(reweight):
     print('Is reweight: ', reweight)
-    print('Is reserve: ', reserve)
     
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', type=str)
-    parser.add_argument('-m', type=str, default='brt/cambridge_False_10epochs')
-    # reserve target word
-    parser.add_argument('-r', type=int, default=0)
-    # sentence only, default False
-    parser.add_argument('-s', type=int, default=0) 
-    # most frequent sense
-    parser.add_argument('-mfs', type=int, default=0)
-    # topic_only
-    parser.add_argument('-t', type=int, default=0)
     # reweight
-    parser.add_argument('-w', type=int, default=0)
-    
+    parser.add_argument('-w', type=int, default=0) 
     
     args = parser.parse_args()
     filetype = args.f
-    model = args.m
-    mfs_bool = bool(args.mfs)
-    topic_only = bool(args.t)
     reweight = bool(args.w)
-    reserve = bool(args.r)
-    sentence_only = bool(args.s)
     
-    print_info(mfs_bool, topic_only, reweight, reserve, sentence_only)
+    print_info(reweight)
     
     data, word2defs, def2guideword = load_data(filetype)
     sbert, spacy_model = load_spacy_sbert()
     
     if filetype == '100':
         sent2ans = load_ans()
-        
-    if mfs_bool:
-        first_sense = load_mfs_data()
     
     emb_map = load_emb()
-    directory = model.split('/')[0]
-    model_name = model.split('/')[-1]
 
-    if sentence_only:
-        save_file = f'./results/{directory}/sentence_only.tsv'
-    elif mfs_bool:
-        save_file = f'./results/{directory}/most_frequent.tsv'
-    elif topic_only:
-        save_file = f'./results/{directory}/{model_name}_{filetype}_reweight{reweight}_topicOnly.tsv'
-    else:
-        save_file = f'./results/{directory}/{model_name}_{filetype}_reweight{reweight}.tsv'
+    save_file = f'./results/clr/v2_2ep_{reweight}_topicOnly.tsv'
         
     print('save file: ', save_file)
-    if not mfs_bool:
-        MLM = load_model(model)
+    predictor = load_model()
     total_count = 0
     rank_score = 0
     top_one = 0
@@ -259,39 +205,28 @@ def main():
             sent, ans = fetch_ans(filetype, sentence, sent2ans)
             if filetype == '100' and not ans:
                 continue
-                
-            # if it is most frequent sense
-            if mfs_bool:
-                mfs_sense = first_sense[targetword]
-                if mfs_sense == ans:
-                    top_one += 1
-                senses = [mfs_sense]
-                write_data(mfs_bool, sentence_only, sent, targetword, 
-                           ans, senses, [], save_file)
-            else:
-                input_sent = handle_examples(spacy_model, targetword, sent, reserve)
-                results = MLM(input_sent)
-                token_score = {}
-                for idx, r in enumerate(results):
-                    if r['token_str'].startswith('['):
-                        topic = ' '.join(r['token_str'].split(' ')[1:])[:-1]
-                        token_score[topic] = r['score']
-                    continue
-                topics = list(token_score.keys())
 
-                results = process(sent, sbert, spacy_model, targetword, 
-                                  token_score, word2defs, emb_map, def2guideword, 
-                                  reserve, sentence_only, topic_only, reweight)
-                senses = [line[0].replace('\n', '').strip() 
-                         for line in results]
-                if senses[0] == ans:
-                    top_one += 1
-                rank_score += 1 / (senses.index(ans) + 1)
-                write_data(mfs_bool, sentence_only, input_sent, targetword,
-                       ans, senses, topics, save_file)
+            # I need to go to the [bank] .
+            input_sent = handle_examples(spacy_model, targetword, sent)
+            results = predictor(input_sent)
+            token_score = {}
+            for idx, r in enumerate(results):
+                if r['token_str'].startswith('['):
+                    topic = ' '.join(r['token_str'].split(' ')[1:])[:-1]
+                    token_score[topic.lower()] = r['score']
+                continue
+            topics = list(token_score.keys())
+
+            results = process(sent, sbert, spacy_model, targetword, token_score, 
+                                word2defs, emb_map, def2guideword, reweight)
+            senses = [line[0].replace('\n', '').strip() 
+                        for line in results]
+            if senses[0] == ans:
+                top_one += 1
+            rank_score += 1 / (senses.index(ans) + 1)
+            write_data(input_sent, targetword, ans, senses, topics, save_file)
             total_count += 1
             # write data into file
-            
             
                 
     with open(save_file, 'a') as f:
