@@ -50,10 +50,10 @@ def main():
     
     reserve = bool(args.r)
 
-    map_dict = {'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat'}
+    map_dict = {'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat', 'gbook': 'gbook'}
     
     if args.save:
-        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_remap_{args.e}epochs'
+        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_{args.e}epochs'
         try:
             os.mkdir(dir_path)
         except:
