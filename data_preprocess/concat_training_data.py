@@ -10,13 +10,18 @@ def main():
     reserve = bool(args.r)
     directory = 'reserve' if reserve else 'no_reserve'
     num = args.n
-
-    with open(f'../data/training_data/{directory}/{num}-{reserve}-concat_masked_noun.tsv', 'a') as g:
+    
+    filename = f'../data/training_data/{directory}/{num}-{reserve}-concat_gbook.tsv'
+    print('save as:', filename)
+    with open(filename, 'a') as g:
         with open(f'../data/training_data/{reserve}_remap_brt_masked_noun.tsv') as f:
             for line in f.readlines():
                 g.write(line)
         with open(f'../data/training_data/{directory}/{num}-{reserve}-t5-xl_wiki_masked.tsv') as h:
             for line in h.readlines():
+                g.write(line)
+        with open(f'../data/training_data/{directory}/{num}_gbook_{reserve}_noun.tsv') as f:
+            for line in f.readlines():
                 g.write(line)
         
 if __name__ == '__main__':
