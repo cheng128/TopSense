@@ -53,8 +53,8 @@ def load_topic_emb(sbert_model):
         emb_map = pickle.load(f)
     return emb_map
             
-def load_model():
-    predictor = TopicPredictor.from_path('../CLR4Topic/trained_models/v4_2ep/model.tar.gz',
+def load_model(model_name):
+    predictor = TopicPredictor.from_path(f'../CLR4Topic/trained_models/{model_name}/model.tar.gz',
                                          'topic_predictor')
     
     return predictor
@@ -232,12 +232,15 @@ def main():
     parser.add_argument('-w', type=int, default=0)
     # sbert model
     parser.add_argument('-sm', type=str, default='all-roberta-large-v1')
+    # model version
+    parser.add_argument('-v', type=str, default='v4_2ep')
     
     args = parser.parse_args()
     filetype = args.f
     topic_only = bool(args.t)
     reweight = bool(args.w)
     sbert_model = args.sm
+    topic_model_name = args.v
     
     print_info(reweight)
     
@@ -249,10 +252,10 @@ def main():
     
     emb_map = load_topic_emb(sbert_model)
 
-    save_file = f'./results/clr/v4_2ep_{filetype}_{reweight}_topic{topic_only}_formula_roberta.tsv'
+    save_file = f'./results/clr/{topic_model_name}_{filetype}_{reweight}_topic{topic_only}_formula_roberta.tsv'
         
     print('save file: ', save_file)
-    predictor = load_model()
+    predictor = load_model(topic_model_name)
     total_count = 0
     rank_score = 0
     top_one = 0
