@@ -34,13 +34,13 @@ def load_data(filetype):
 
     return data, word2defs, def2guideword
 
-def load_ans():
-    with open('./data/100_sentences_ans.json') as f:
+def load_ans(filetype):
+    with open(f'./data/{filetype}_sentences_ans.json') as f:
         sent2ans = json.loads(f.read())
     return sent2ans
 
-def load_emb():
-    filename = '../data/topic_embs.pickle'
+def load_topic_emb(model_name):
+    filename = f'../data/topic_emb/{model_name}_topic_embs.pickle'
     print('load emb file: ', filename)
         
     with open(filename, 'rb') as f:
@@ -58,13 +58,13 @@ def load_model(model):
 
     return nlp
 
-def load_spacy_sbert():
-    model = SentenceTransformer('all-roberta-large-v1')
+def load_spacy_sbert(model_name):
+    model = SentenceTransformer(model_name)
     spacy_model = spacy.load("en_core_web_sm")
     return model, spacy_model 
 
 def fetch_ans(filetype, sentence, sent2ans):
-    if filetype == '100':
+    if filetype in ['100', '200', '300']:
         sent = sentence[0]
         ans = sent2ans.get(sent, '')
     else:
@@ -77,8 +77,12 @@ def reweight_prob(prob):
     reweighted_probs = m(torch.tensor([(prob + weight), complement_prob]))
     return float(reweighted_probs[0])
 
+def rescal_cos_score(score):
+    rescal_score = 1 - np.arccos(min(float(score), 1)) / np.pi
+    return rescal_score
+
 def process(sent, sbert, spacy_model, targetword, token_score, 
-            word2defs, emb_map, def2guideword, reserve, reweight):
+            word2defs, emb_map, def2guideword, reserve, topic_only, reweight):
     try:
         word = spacy_model(targetword)[0].lemma_
     except:
@@ -98,8 +102,8 @@ def process(sent, sbert, spacy_model, targetword, token_score,
     def_sent_score = {}
 
     for j in range(1, len(cos_scores)):
-        def_sent_score[sentence_defs[j]]  = 1 - np.arccos(min(float(cos_scores[0][j].cpu()), 1)) / np.pi
-    
+        def_sent_score[sentence_defs[j]]  = rescal_cos_score(cos_scores[0][j].cpu())
+
     # calculate cosine similarity score between topics and definitions
     weight_score = defaultdict(lambda: 0)
     for topic, confidence in token_score.items():
@@ -109,13 +113,16 @@ def process(sent, sbert, spacy_model, targetword, token_score,
                 sense_emb = sbert.encode(sense, convert_to_tensor=True)
                 cosine_scores = util.pytorch_cos_sim(sense_emb, topic_emb)
                 sorted_scores = sorted(cosine_scores[0].cpu(), reverse=True)
-                top3_scores = sorted_scores[:3]
+                top3_scores = [rescal_cos_score(score) for score in sorted_scores[:3]]
                 if reweight:
                     confidence =  reweight_prob(token_score[topic])
                 else:
                     confidence =  token_score[topic]
-                sense_score = confidence * sum(top3_scores) / len(top3_scores) +\
-                                (1 - confidence) * def_sent_score[sense]
+                if topic_only:
+                    sense_score = confidence * sum(top3_scores) / len(top3_scores)
+                else:   
+                    sense_score = confidence * sum(top3_scores) / len(top3_scores) +\
+                                     (1 - confidence) * def_sent_score[sense]
                 weight_score[sense] += sense_score 
     
     result = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
@@ -160,9 +167,10 @@ def write_data(input_sent, targetword, ans, senses, topics, save_file):
     with open(save_file, 'a') as f:
         f.write(write_data)
 
-def print_info(reweight, reserve):
-    print('Is reweight: ', reweight)
-    print('Is reserve: ', reserve)
+def print_info(reweight, reserve, topic_only):
+    print('Is reweight:', reweight)
+    print('Is reserve:', reserve)
+    print('Is topic_only:', topic_only)
     
 
 def main():
@@ -171,8 +179,12 @@ def main():
     parser.add_argument('-m', type=str, default='brt/cambridge_False_10epochs')
     # reserve target word
     parser.add_argument('-r', type=int, default=0)
+    # topic_only
+    parser.add_argument('-t', type=int, default=0)
     # reweight
     parser.add_argument('-w', type=int, default=0)
+    # sbert model
+    parser.add_argument('-sm', type=str, default='all-roberta-large-v1')
     
     
     args = parser.parse_args()
@@ -180,20 +192,22 @@ def main():
     model = args.m
     reweight = bool(args.w)
     reserve = bool(args.r)
+    topic_only = bool(args.t)
+    sbert_name = args.s
     
-    print_info(reweight, reserve)
+    print_info(reweight, reserve, topic_only)
     
     data, word2defs, def2guideword = load_data(filetype)
-    sbert, spacy_model = load_spacy_sbert()
+    sbert, spacy_model = load_spacy_sbert(sbert_name)
     
-    if filetype == '100':
-        sent2ans = load_ans()
+    if filetype in ['100', '200', '300']:
+        sent2ans = load_ans(filetype)
     
-    emb_map = load_emb()
+    emb_map = load_topic_emb(sbert_name)
     directory = model.split('/')[0]
     model_name = model.split('/')[-1]
 
-    save_file = f'./results/{directory}/{model_name}_{filetype}_reweight{reweight}_formula.tsv'
+    save_file = f'./results/{directory}/{model_name}_{filetype}_reweight{reweight}_topic{topic_only}_formula_{sbert_name}.tsv'
         
     print('save file: ', save_file)
     MLM = load_model(model)
@@ -204,7 +218,7 @@ def main():
     for targetword, sentences in tqdm(data.items()):
         for sentence in sentences:
             sent, ans = fetch_ans(filetype, sentence, sent2ans)
-            if filetype == '100' and not ans:
+            if filetype in ['100', '200', '300'] and not ans:
                 continue
                 
             # if it is most frequent sense
@@ -220,7 +234,7 @@ def main():
 
             results = process(sent, sbert, spacy_model, targetword, 
                                 token_score, word2defs, emb_map, def2guideword, 
-                                reserve, reweight)
+                                reserve, topic_only, reweight)
             senses = [sense[0].replace('\n', '').strip() 
                         for sense in results]
             if senses[0] == ans:
@@ -229,8 +243,6 @@ def main():
             write_data(input_sent, targetword, ans, senses, topics, save_file)
             total_count += 1
             # write data into file
-            
-            
                 
     with open(save_file, 'a') as f:
         if rank_score:

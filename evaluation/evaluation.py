@@ -33,8 +33,8 @@ def load_data(filetype):
 
     return data, word2defs, def2guideword
 
-def load_ans():
-    with open('./data/100_sentences_ans.json') as f:
+def load_ans(filetype):
+    with open(f'./data/{filetype}_sentences_ans.json') as f:
         sent2ans = json.loads(f.read())
     return sent2ans
 
@@ -43,8 +43,8 @@ def load_mfs_data():
         mfs_data = json.loads(f.read())
     return mfs_data
 
-def load_emb():
-    filename = '../data/topic_embs.pickle'
+def load_topic_emb(sbert_model):
+    filename = f'../data/topic_emb/{sbert_model}_topic_embs.pickle'
     print('load emb file: ', filename)
         
     with open(filename, 'rb') as f:
@@ -62,13 +62,13 @@ def load_model(model):
 
     return nlp
 
-def load_spacy_sbert():
-    model = SentenceTransformer('all-roberta-large-v1')
+def load_spacy_sbert(sbert_model):
+    model = SentenceTransformer(sbert_model)
     spacy_model = spacy.load("en_core_web_sm")
     return model, spacy_model 
 
 def fetch_ans(filetype, sentence, sent2ans):
-    if filetype == '100':
+    if filetype in ['100', '200', '300']:
         sent = sentence[0]
         ans = sent2ans.get(sent, '')
     else:
@@ -212,6 +212,8 @@ def main():
     parser.add_argument('-t', type=int, default=0)
     # reweight
     parser.add_argument('-w', type=int, default=0)
+    # sbert_model
+    parser.add_argument('-sm', type=str, default='all-roberta-large-v1')
     
     
     args = parser.parse_args()
@@ -222,30 +224,31 @@ def main():
     reweight = bool(args.w)
     reserve = bool(args.r)
     sentence_only = bool(args.s)
+    sbert_model = args.sm
     
     print_info(mfs_bool, topic_only, reweight, reserve, sentence_only)
     
     data, word2defs, def2guideword = load_data(filetype)
-    sbert, spacy_model = load_spacy_sbert()
+    sbert, spacy_model = load_spacy_sbert(sbert_model)
     
-    if filetype == '100':
-        sent2ans = load_ans()
+    if filetype in ['100', '200', '300']:
+        sent2ans = load_ans(filetype)
         
     if mfs_bool:
         first_sense = load_mfs_data()
-    
-    emb_map = load_emb()
+
+    emb_map = load_topic_emb(sbert_model)
     directory = model.split('/')[0]
     model_name = model.split('/')[-1]
 
     if sentence_only:
-        save_file = f'./results/{directory}/sentence_only.tsv'
+        save_file = f'./results/{directory}/{filetype}_sentence_only.tsv'
     elif mfs_bool:
-        save_file = f'./results/{directory}/most_frequent.tsv'
+        save_file = f'./results/{directory}/{filetype}_most_frequent.tsv'
     elif topic_only:
-        save_file = f'./results/{directory}/{model_name}_{filetype}_reweight{reweight}_topicOnly.tsv'
+        save_file = f'./results/{directory}/{model_name}_{filetype}_reweight{reweight}_topicOnly_{sbert_model}.tsv'
     else:
-        save_file = f'./results/{directory}/{model_name}_{filetype}_reweight{reweight}.tsv'
+        save_file = f'./results/{directory}/{model_name}_{filetype}_reweight{reweight}_{sbert_model}.tsv'
         
     print('save file: ', save_file)
     if not mfs_bool:
@@ -257,7 +260,7 @@ def main():
     for targetword, sentences in tqdm(data.items()):
         for sentence in sentences:
             sent, ans = fetch_ans(filetype, sentence, sent2ans)
-            if filetype == '100' and not ans:
+            if filetype in ['100', '200', '300'] and not ans:
                 continue
                 
             # if it is most frequent sense
