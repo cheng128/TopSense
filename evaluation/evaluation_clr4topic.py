@@ -40,13 +40,13 @@ def load_data(filetype):
 
     return data, word2defs, def2guideword
 
-def load_ans():
-    with open('./data/100_sentences_ans.json') as f:
+def load_ans(filetype):
+    with open(f'./data/{filetype}_sentences_ans.json') as f:
         sent2ans = json.loads(f.read())
     return sent2ans
 
-def load_emb():
-    filename = '../data/topic_embs.pickle'
+def load_topic_emb(sbert_model):
+    filename = f'../data/topic_emb/{sbert_model}_topic_embs.pickle'
     print('load emb file: ', filename)
         
     with open(filename, 'rb') as f:
@@ -54,18 +54,18 @@ def load_emb():
     return emb_map
             
 def load_model():
-    predictor = TopicPredictor.from_path('../CLR4Topic/trained_models/v2_2ep/model.tar.gz',
+    predictor = TopicPredictor.from_path('../CLR4Topic/trained_models/v4_2ep/model.tar.gz',
                                          'topic_predictor')
     
     return predictor
 
-def load_spacy_sbert():
-    model = SentenceTransformer('all-roberta-large-v1')
+def load_spacy_sbert(sbert_model):
+    model = SentenceTransformer(sbert_model)
     spacy_model = spacy.load("en_core_web_sm")
     return model, spacy_model 
 
 def fetch_ans(filetype, sentence, sent2ans):
-    if filetype == '100':
+    if filetype in ['100', '200', '300']:
         sent = sentence[0]
         ans = sent2ans.get(sent, '')
     else:
@@ -131,6 +131,57 @@ def process(sent, sbert, spacy_model, targetword, token_score,
     result = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
     return result
 
+def rescale_cos_score(score):
+    rescale_score = 1 - np.arccos(min(float(score), 1)) / np.pi
+    return rescale_score
+
+def formula(sent, sbert, spacy_model, targetword, token_score, 
+            word2defs, emb_map, def2guideword, topic_only, reweight):
+    try:
+        word = spacy_model(targetword)[0].lemma_
+    except:
+        word = spacy_model(targetword)[0].text
+        
+    definitions = word2defs[word][:]
+    guide_def = [def2guideword.get(sense, '') + ' ' + sense 
+                       for sense in word2defs[word]]
+    # sentence and definitions
+    
+    sentence_defs = [sent]
+    sentence_defs.extend(guide_def)
+    embs = sbert.encode(sentence_defs, convert_to_tensor=True)
+    
+    # calculate cosine similarity score between sentence and definitions
+    cos_scores = util.pytorch_cos_sim(embs, embs)
+    def_sent_score = {}
+
+    for j in range(1, len(cos_scores)):
+        def_sent_score[sentence_defs[j]]  = rescale_cos_score(cos_scores[0][j].cpu())
+    
+    # calculate cosine similarity score between topics and definitions
+    weight_score = defaultdict(lambda: 0)
+    for topic, confidence in token_score.items():
+        if topic in emb_map:
+            topic_emb = emb_map[topic]
+            for sense in guide_def:
+                sense_emb = sbert.encode(sense, convert_to_tensor=True)
+                cosine_scores = util.pytorch_cos_sim(sense_emb, topic_emb)
+                sorted_scores = sorted(cosine_scores[0].cpu(), reverse=True)
+                top3_scores = [rescale_cos_score(score) for score in sorted_scores[:3]]
+                if reweight:
+                    confidence =  reweight_prob(token_score[topic])
+                else:
+                    confidence =  token_score[topic]
+                if topic_only:
+                    sense_score = confidence * sum(top3_scores) / len(top3_scores)
+                else:   
+                    sense_score = confidence * sum(top3_scores) / len(top3_scores) +\
+                                     (1 - confidence) * def_sent_score[sense]
+                weight_score[sense] += sense_score 
+    
+    result = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
+    return result
+
 def handle_examples(nlp, headword, sent_en):
     reconstruct = []
     doc = nlp(sent_en)
@@ -175,24 +226,30 @@ def print_info(reweight):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', type=str)
+    # topic_only
+    parser.add_argument('-t', type=str)
     # reweight
-    parser.add_argument('-w', type=int, default=0) 
+    parser.add_argument('-w', type=int, default=0)
+    # sbert model
+    parser.add_argument('-sm', type=str, default='all-roberta-large-v1')
     
     args = parser.parse_args()
     filetype = args.f
+    topic_only = bool(args.t)
     reweight = bool(args.w)
+    sbert_model = args.sm
     
     print_info(reweight)
     
     data, word2defs, def2guideword = load_data(filetype)
-    sbert, spacy_model = load_spacy_sbert()
+    sbert, spacy_model = load_spacy_sbert(sbert_model)
     
-    if filetype == '100':
-        sent2ans = load_ans()
+    if filetype in ['100', '200', '300']:
+        sent2ans = load_ans(filetype)
     
-    emb_map = load_emb()
+    emb_map = load_topic_emb(sbert_model)
 
-    save_file = f'./results/clr/v2_2ep_{reweight}_topicOnly.tsv'
+    save_file = f'./results/clr/v4_2ep_{filetype}_{reweight}_topic{topic_only}_formula_roberta.tsv'
         
     print('save file: ', save_file)
     predictor = load_model()
@@ -203,7 +260,7 @@ def main():
     for targetword, sentences in tqdm(data.items()):
         for sentence in sentences:
             sent, ans = fetch_ans(filetype, sentence, sent2ans)
-            if filetype == '100' and not ans:
+            if filetype in ['100', '200', '300'] and not ans:
                 continue
 
             # I need to go to the [bank] .
@@ -217,8 +274,8 @@ def main():
                 continue
             topics = list(token_score.keys())
 
-            results = process(sent, sbert, spacy_model, targetword, token_score, 
-                                word2defs, emb_map, def2guideword, reweight)
+            results = formula(sent, sbert, spacy_model, targetword, token_score, 
+                        word2defs, emb_map, def2guideword, topic_only, reweight)
             senses = [line[0].replace('\n', '').strip() 
                         for line in results]
             if senses[0] == ans:
