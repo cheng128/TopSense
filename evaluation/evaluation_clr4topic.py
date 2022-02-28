@@ -1,3 +1,7 @@
+# best version so far: v4_2ep
+# modified: add filetype (100, 200, 300), topic only, etc.
+# use new formula 
+
 import sys
 import pdb
 import json
