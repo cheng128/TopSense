@@ -27,7 +27,7 @@ def formula(sent, SBERT, spacy_model, targetword, token_score,
                 sense_emb = SBERT.encode(sense, convert_to_tensor=True)
                 cosine_scores = util.pytorch_cos_sim(sense_emb, topic_emb)
                 sorted_scores = sorted(cosine_scores[0].cpu(), reverse=True)
-                top3_scores = [rescal_cos_score(score) for score in sorted_scores[:3]]
+                top3_scores = [rescale_cos_score(score) for score in sorted_scores[:3]]
                 if reweight:
                     confidence =  reweight_prob(token_score[topic])
                 else:
@@ -54,8 +54,7 @@ def main():
     parser.add_argument('-sm', type=str, default='all-roberta-large-v1') # sbert_model
     
     args = parser.parse_args()
-    # parse arguments
-    filetype, topic_model_name, mfs_bool, topic_only, \
+    filetype, topic_model_name, mfs_bool, topic_only,\
         reweight, reserve, sentence_only, sbert_model = parse_argument(args)
     
     print_info(topic_model_name, mfs_bool, topic_only, reweight, 
@@ -68,7 +67,8 @@ def main():
     
     if filetype in ['100', '200', '300']:
         sent2ans = load_ans(filetype)
-
+    else:
+        sent2ans = defaultdict(lambda:' ')
     # if mfs then we need to load ans, else we need to load MLM 
     if mfs_bool:
         first_sense = load_mfs_data()
@@ -76,7 +76,7 @@ def main():
         first_sense = ''
         MLM = load_model(topic_model_name)
     
-    save_file = gen_save_filename(sentence_only, mfs_bool, topic_only,
+    save_file = gen_save_filename(sentence_only, mfs_bool, topic_only, reserve,
                                     topic_model_name, filetype, reweight,
                                         sbert_model, 'formula')
 
@@ -85,7 +85,7 @@ def main():
                             save_file, 
                             MLM, SBERT, spacy_model, 
                             word2defs, emb_map, def2guideword,
-                            formula)
+                            formula) # calculate function
 
 if __name__ == '__main__':
     main()

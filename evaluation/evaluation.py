@@ -28,7 +28,7 @@ def process(sent, SBERT, spacy_model, targetword, token_score,
             if topic in emb_map:
                 cosine_scores = util.pytorch_cos_sim(embs, emb_map[topic])
                 for j in range(len(emb_map[topic])):
-                    score = rescal_cos_score(cosine_scores[0][j].cpu())
+                    score = rescale_cos_score(cosine_scores[0][j].cpu())
                     if score > max_score:
                         max_score = score
                         max_topic = topic
@@ -86,7 +86,7 @@ def main():
         first_sense = ''
         MLM = load_model(topic_model_name)
 
-    save_file = gen_save_filename(sentence_only, mfs_bool, topic_only,
+    save_file = gen_save_filename(sentence_only, mfs_bool, topic_only, reserve,
                                     topic_model_name, filetype, reweight,
                                         sbert_model, 'origin')
         
