@@ -4,6 +4,7 @@
 import json
 import nltk
 import pickle
+import argparse
 import wikipediaapi
 import urllib.parse
 from tqdm import tqdm
@@ -21,18 +22,23 @@ def lemmatize(word):
     lemma = lemmatizer.lemmatize(word,'n')
     return lemma
 
-def load_data():  
+def load_data(version):  
     with open('../data/words2defs.json') as f:
         word2def = json.loads(f.read())
     
     with open('../data/t5-xl_def_emb.pickle', 'rb') as f:
         def_emb_dict = pickle.load(f)
-        
-    with open('../data/wiki/wiki_href_word2sents.json') as f:
+
+    sents_filename = f'../data/wiki/{version}_wiki_href_word2sents.json'
+    with open(sents_filename) as f:
         href2word_sents = json.loads(f.read())
-        
-    with open('../data/wiki/wiki_href2def.json') as f:
+    
+    href_filename = f'../data/wiki/{version}_wiki_href2def.json'
+    with open(href_filename) as f:
         href2def = json.loads(f.read())
+
+    print('sents file:', href_filename)
+    print('href file:', href_filename)
     
     with open('../data/cambridge.sense.000.jsonl') as f:
         cambridge = [json.loads(line) for line in f.readlines()]
@@ -101,19 +107,29 @@ def process_sent(href2def, href_word2sents, word2def, def2id, def_emb_dict):
 
 
 def main():
-    word2def, def2id, def_emb_dict, href2word_sents, href2def = load_data()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', type=str)
+    args = parser.parse_args()
+    version = args.v
+    
+    save_filename = f'../data/wiki/{version}_t5-xl_wiki_word_id2sents_append.json'
+    print("save file:", save_filename)
+
+    word2def, def2id, def_emb_dict, href2word_sents, href2def = load_data(version)
     href_word2sents = build_map(href2word_sents)
 
     href_word2id = process_sent(href2def, href_word2sents, word2def, def2id, def_emb_dict)
 
-    word_id2sents = defaultdict(dict)
+    word_id2sents = defaultdict(list)
     for href_word, sents in tqdm(href_word2sents.items()):
         if href_word in href_word2id:
             word_id, score = href_word2id[href_word]
-            word_id2sents[word_id] = [href_word[1], score, sents]
+            if word_id == 'major.noun.02':
+                print(sents)
+            word_id2sents[word_id].append([href_word[1], score, sents])
 
-    with open('../data/wiki/fix_t5-xl_wiki_word_id2sents.json', 'w') as f:
-        f.write(json.dumps(word_id2sents))
+    # with open(save_filename, 'w') as f:
+    #     f.write(json.dumps(word_id2sents))
                     
 
 if __name__ == '__main__':
