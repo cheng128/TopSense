@@ -35,15 +35,15 @@ def load_cambridge():
     with open('../data/words2defs.json') as f:
         word2defs = json.loads(f.read())
         
-    with open('../data/def2guide.json') as f:
-        def2guideword = json.loads(f.read())
-    return word2defs, def2guideword
+    with open('../data/def2data.pickle', 'rb') as f:
+        def2data = pickle.load(f) 
+    return word2defs, def2data
 
 def load_map():
     with open('../data/orig_new.json') as f:
         data = json.loads(f.read())
         
-    filename = '../data/topic_embs.pickle'
+    filename = '../data/topic_emb/sentence-t5-xl_topic_embs.pickle'
     with open(filename, 'rb') as f:
         emb_map = pickle.load(f)
         
@@ -53,7 +53,7 @@ def load_map():
 
 
 orig_new_map, emb_map, filename, def_emb_map = load_map()
-word2defs, def2guideword = load_cambridge()
+word2defs, def2data = load_cambridge()
 
 
 def load_model(directory='brt', model_name='remap_10epochs'):
@@ -63,7 +63,7 @@ def load_model(directory='brt', model_name='remap_10epochs'):
     return mlm
 
 def load_spacy_sbert():
-    model = SentenceTransformer('all-roberta-large-v1')
+    model = SentenceTransformer('sentence-t5-xl')
     spacy_model = spacy.load("en_core_web_sm")
     return model, spacy_model
 
@@ -104,7 +104,7 @@ def collect_token_score(mlm_results):
     return token_score, topics
 
 
-def sort_sense(targetword, token_score, sentence):
+def sort_sense(targetword, token_score, sentence, RESERVE):
     word = lemmatize(targetword)
     guide_def = add_guideword_to_word_definitions(word)
     def_sent_score = calculate_def_sent_score(guide_def, sentence, targetword)
@@ -129,8 +129,15 @@ def lemmatize(word):
 
 def add_guideword_to_word_definitions(word):
     definitions = word2defs[word][:]
-    guide_def = [def2guideword.get(sense, '') + ' ' + sense 
-                 for sense in word2defs[word]]
+    guide_def = []
+    for sense in word2defs[word]:
+        data = def2data.get((word, sense), '')
+        if data:
+            guideword = data['guideword']
+            sense_add_guideword = guideword[1:-1] + ' ' + sense
+            guide_def.append(sense_add_guideword)
+        else:
+            guide_def.append(sense)
     return guide_def
 
 

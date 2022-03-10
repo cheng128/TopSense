@@ -29,10 +29,6 @@ def load_model(data='brt', epochs='remap_10epochs'):
             nlp = pipeline('fill-mask',
                            model=f"../model/brt/{epochs}",
                            tokenizer="../fast_tokenizer")
-    elif data == 'lr_1e-5':
-        nlp = pipeline('fill-mask',
-                       model=f"../model/{data}/{epochs}",
-                       tokenizer="../remap_tokenizer")
     else:
         nlp = pipeline('fill-mask',
                       model=f"../model/{data}/{epochs}",
@@ -124,8 +120,12 @@ def show_def(targetword, token_score, word2defs, def2guideword, cat_map, emb_map
                     elif score == max_score and token_score[topic] > max_confidence:
                         max_topic = topic
                         max_confidence = token_score[topic]
-        confidence =  token_score[max_topic]
-        confidence = reweight_prob(confidence)
+                        
+        if 'True' in epochs:
+            confidence = reweight_prob(token_score[max_topic])
+        else:
+            confidence =  token_score[max_topic]
+        
         weight_score[sense] = confidence * max_score + (1-confidence) * def_sent_score[sense]
     
     result = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
@@ -137,7 +137,7 @@ def show_def(targetword, token_score, word2defs, def2guideword, cat_map, emb_map
         
 
 st.title("MLM4Topic Prototype")
-choice = st.radio("model trained epochs", ['reserve: reserve_remap_10epochs'])
+choice = st.radio("model trained epochs", ['brt: remap_10epochs', 'wikipedia: 20_False_remap_10epochs_base10', 'concat: 10_True_remap_10epochs'])
 epochs = choice.split(':')[-1].replace(' ', '')
 data = choice.split(':')[0]
 
@@ -152,7 +152,10 @@ clicked = st.button("Enter")
 
 def main():
 #     input_sent = sent.replace('[' + targetword + ']', '[MASK]')
-    input_sent = sent.replace('[' + targetword + ']', f'{targetword} [MASK]')
+    if 'True' in epochs:
+        input_sent = sent.replace('[' + targetword + ']', f'{targetword} [MASK]')
+    else:
+        input_sent = sent.replace('[' + targetword + ']', '[MASK]')
     results = nlp(input_sent)
     orig_new_map, emb_map, filename, def_emb_map = load_map()
     word2defs, def2guideword = load_cambridge()
