@@ -39,7 +39,6 @@ def build_map(sent, page_def, href_map, word2def, target_words, wiki_wiki):
                         for category in page.categories:
                             if 'disambiguation pages' in category.lower():
                                 is_disambiguate = True
-                                print(page.title)
                                 break
                         # use first sentence as definition of this page
                         first_sent = tokenizer.tokenize(page.summary)[0]
@@ -48,8 +47,19 @@ def build_map(sent, page_def, href_map, word2def, target_words, wiki_wiki):
                 except:
                     continue
             else:
-                href_map[href].append([word, soup.text])
+                if [word, soup.text] not in href_map[href]:
+                    href_map[href].append([word, soup.text])
             
+    return page_def, href_map
+
+def load_processed_file(href2def, word2sents):
+    
+    with open(href2def) as f:
+        page_def = json.loads(f.read())
+    
+    with open(word2sents) as f:
+        href_map = defaultdict(list, json.loads(f.read()))
+    
     return page_def, href_map
 
 def main():
@@ -61,9 +71,9 @@ def main():
     print(f'{version} wiki')
     
     href2def = f'../data/wiki/{version}_wiki_href2def.json'
-    print("href2def:", href2def)
-
     word2sents = f'../data/wiki/{version}_wiki_href_word2sents.json'
+
+    print("href2def:", href2def)
     print("word2sents:", word2sents)
 
     wiki_wiki = wikipediaapi.Wikipedia(language=version)
@@ -71,8 +81,10 @@ def main():
     word2def, target_words = load_data()
     word_id2wiki_sent = defaultdict(list)
     
-    page_def = {}
-    href_map = defaultdict(list)
+    page_def, href_map = load_processed_file(href2def, word2sents)
+
+#     page_def = {}
+#     href_map = defaultdict(list)
     with open(f'../data/wiki/{version}_en_wiki_link.txt') as f:
         count = 0
         for line in tqdm(f.readlines()):
@@ -91,10 +103,13 @@ def main():
                     
                 with open(word2sents, 'w') as f:
                     f.write(json.dumps(href_map)) 
-
+    
     with open(href2def, 'w') as f:
         f.write(json.dumps(page_def))
-        
+    
+    for word in word2sents:
+        word2sents[word] = list(set(word2sents[word]))
+    
     with open(word2sents, 'w') as f:
         f.write(json.dumps(href_map))
 
