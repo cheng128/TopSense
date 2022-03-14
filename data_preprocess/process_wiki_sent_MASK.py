@@ -5,8 +5,8 @@ from tqdm import tqdm
 from process_MASK_data import *
 
 def load_data(num, version):
-    filename = f'../data/wiki/{num}_{version}_t5-xl_wiki_word_id2sents.json'
-#     filename = f'../data/{num}-sense_to_gbook_examples.json'
+    filename = f'../data/wiki/append_highest/{num}_{version}_wiki_id2sents_highest.json'
+    # filename = f'../data/wiki/{num}_{version}_t5-xl_wiki_word_id2sents.json'
     print('read:', filename)
     with open(filename) as f:
         word_id2sents = json.loads(f.read())        
@@ -30,7 +30,7 @@ def main():
 
     word_id2sents, word_id2topics = load_data(num, version)
     
-    filename = f'../data/training_data/{directory}/{num}_{version}_{reserve}-t5-xl_wiki_masked.tsv'
+    filename = f'../data/training_data/{directory}/filtered_{num}_{version}_{reserve}_highest_masked.tsv'
 #     filename = f'../data/training_data/{num}-gbooks.tsv'
     print('save: ', filename)
     with open(filename, 'a') as f:
