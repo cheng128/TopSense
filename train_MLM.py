@@ -45,15 +45,20 @@ def main():
     parser.add_argument('-g', type=str) # directoy
     parser.add_argument('--save', action="store_true")
     parser.add_argument('-n', type=str)
-    parser.add_argument('-r', type=int)
+    parser.add_argument('-r', type=int, default=0)
+    parser.add_argument('-v', type=str)
     args = parser.parse_args()
     
+    epochs = args.e
+    filename = args.f
     reserve = bool(args.r)
+    version = args.v
 
-    map_dict = {'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat', 'gbook': 'gbook'}
+    map_dict = {'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat', 'hybrid': 'hybrid'}
     
     if args.save:
-        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_{args.e}epochs'
+        dir_path = f'./model/{map_dict[args.g]}/highest_{args.n}_{version}_{reserve}_{epochs}epochs'
+        # dir_path = f'./model/{map_dict[args.g]}/{args.g}_{reserve}_{args.e}epochs_base_cam_False_10'
         try:
             os.mkdir(dir_path)
         except:
@@ -66,7 +71,9 @@ def main():
     tokenizer = BertTokenizerFast.from_pretrained(tokenizer_name)
     print("use tokenizer:", tokenizer_name)
     
-    model = BertForMaskedLM.from_pretrained('bert-base-uncased')
+    base_pretrained_model = 'bert-base-uncased'
+#     base_pretrained_model =  './model/concat/highest_20_simple_False_10epochs'
+    model = BertForMaskedLM.from_pretrained(base_pretrained_model)
     
 #     from wiki base pretrained model
 #     pretrain = './model/wikipedia/20-t5-xl_remap_10epochs_base0'
@@ -75,10 +82,10 @@ def main():
     # must implement
     model.resize_token_embeddings(len(tokenizer))
     
-    topic_sent, masked_sent = load_preprocessed(args.f)
+    topic_sent, masked_sent = load_preprocessed(filename)
     print('after load data')
     
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device('cuda:1') if torch.cuda.is_available() else torch.device('cpu')
     print('device: ', device)
 
     inputs = tokenizer(masked_sent,
@@ -101,9 +108,8 @@ def main():
     model.train()
 
     optim = AdamW(model.parameters(), lr=1e-5)
-#     optim = AdamW(model.parameters(), lr=1e-6)
     loss_record = []
-    for epoch in range(args.e):
+    for epoch in range(epochs):
         loop = tqdm(dataloader, leave=True)
         for batch in loop:
             optim.zero_grad()
@@ -122,7 +128,9 @@ def main():
     if args.save:
         model.save_pretrained(dir_path)
         with open(f'{dir_path}/spec.txt', 'w') as f:
-            f.write(f'python train_MLM.py -e {args.e} -g {args.g} -f {args.f} -n {args.n} -r {args.r}\n')
+            f.write(f'python train_MLM.py -e {epochs} -g {args.g} -f {filename} -n {args.n} -r {args.r} -v {version}\n')
+            f.write(f'tokenizer: {tokenizer_name}\n')
+            f.write(f'pretrained model: {base_pretrained_model}\n')
             for loss in loss_record:
                 f.write('\t'.join(loss) + '\n')
             
