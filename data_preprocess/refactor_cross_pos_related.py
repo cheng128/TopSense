@@ -17,7 +17,6 @@ from tqdm import tqdm
 from collections import defaultdict
 from sentence_transformers import SentenceTransformer, util
 
-model = SentenceTransformer('sentence-t5-xl')
 
 class Remap():
     
@@ -30,7 +29,7 @@ class Remap():
         
         self.pos_map = {'adj': 'adjective', 'adv':'adverb',
                         'noun': 'noun', 'verb': 'verb'}
-#         self.model = SentenceTransformer('all-roberta-large-v1')
+        # self.model = SentenceTransformer('all-roberta-large-v1')
         self.model = SentenceTransformer('sentence-t5-xl')
     
     def init_args(self, args):
@@ -43,15 +42,15 @@ class Remap():
     def init_readfile(self):
         if self.args_type == 'test':
             word = self.args_word
-            self.brt_file = f'../data/remap_test_data/BRT_data_{word}_test.json'
+            self.brt_file = f'../data/remap_test_data/BRT_data_{word}_test_new.json'
         elif self.args_type == 'normal':
-            self.brt_file = f'../data/BRT_data.json'
+            self.brt_file = f'../data/correct_BRT_data.json.json'
     
     def init_savefile(self):
         jsonl_base = '../data/jsonl_file/'
         filename = f'{self.args_guideword}_{self.args_threshold}_{self.args_way}'
         if self.args_type == 'test':
-            self.jsonl_file = f'{jsonl_base}test_jsonl/refactor_{filename}_{self.args_word}_test_cross_reference.jsonl'
+            self.jsonl_file = f'{jsonl_base}test_jsonl/refactor_{filename}_{self.args_word}_cross_reference_t5_only_group_related.jsonl'
         elif self.args_type == 'normal':
             self.jsonl_file = f'{jsonl_base}refactor_{filename}_map_cross_reference.jsonl'
         
@@ -86,9 +85,11 @@ class Remap():
         return data
     
     def write_file(self):
-        self.map_data = sorted(self.map_data, key=lambda x: x['group'])
+        map_data = self.map_data
+        map_data = sorted(map_data, key=lambda x: x['category'])
+        map_data = sorted(map_data, key=lambda x: x['group'])
         with open(self.jsonl_file, 'w') as f:
-            for data in self.map_data:
+            for data in map_data:
                 f.write(json.dumps(data))
                 f.write('\n')
 
@@ -107,8 +108,11 @@ class Remap():
         way = self.args_way
         
         sentences = [sense['en_def']]
-        sentences.extend(self.related_list)
-        sentences.extend(self.group_related)
+        if self.group_related or self.group_mono_related:
+            sentences.extend(self.group_related)
+            sentences.extend(self.group_mono_related)
+        elif self.related_list:
+            sentences. extend(self.related_list)
         
         embeddings = self.model.encode(sentences, convert_to_tensor=True)
         cosine_scores = util.cos_sim(embeddings, embeddings)
@@ -142,8 +146,7 @@ class Remap():
         return sorted_sim_sense
     
     def init_related_list(self, pos_data):
-        self.related_list = []
-        self.seen = []
+        self.related_list = [self.category, self.supergroup]
         for pos, groups in pos_data.items():
             if pos in ['cat_num', 'interjections']:
                 continue
@@ -160,9 +163,29 @@ class Remap():
                             store_data = self.gen_store_data(word, sense, score)
                             self.map_data.append(store_data)
                             # update related list
-                            self.seen.append([word, self.pos, self.group])
+                    else:
+                        if word.split()[-1].isdigit():
+                            target_word = ' '.join(word.split()[:-1])
+                            self.related_list.append(target_word)
+                        else:
+                            self.related_list.append(word)
              
         print('after:', len(self.related_list))
+
+    def monosemous_word(self):
+        for word in self.words:
+            definitions = self.cam_map.get(word, {})
+            if len(definitions) == 1:
+                sense = definitions[0]
+                self.group_mono_related.append(sense['en_def'])
+                self.seen.append([word, self.pos, self.group])
+            else:
+                if word.split()[-1].isdigit():
+                    target_word = ' '.join(word.split()[:-1])
+                    self.group_mono_related.append(target_word)
+                else:
+                    self.group_mono_related.append(word)
+        print(self.group_mono_related)
 
     def polysemous_word(self):
         for word in self.words:
@@ -174,6 +197,12 @@ class Remap():
                         score = float(sorted_sim_sense[0][1])
                         sense = sorted_sim_sense[0][0]
                         self.queue.append([score, word, sense])
+                else:
+                    if word.split()[-1].isdigit():
+                        target_word = ' '.join(word.split()[:-1])
+                        self.group_related.append(target_word)
+                    else:
+                        self.group_related.append(word)
     
     def find_idx(self, last_idx, value, top3_scores):
         while last_idx > -1:
@@ -267,12 +296,15 @@ class Remap():
                     self.pos = self.pos_map[pos]
                     for group, words in groups.items():
                         print(f'pos: {pos} group: {group}')
-                        self.group_related = []
+                        self.group_related = [supergroup, category]
+                        self.group_mono_related = []
                         self.queue = []
                         self.sense2top3scores = {}
                         self.group = group
                         self.words = words
-                        # put other ponosemous word into queue 
+                        # put other ponosemous word into queue
+                        self.seen = []
+                        self.monosemous_word() 
                         self.polysemous_word()
                         self.clear_queue()
         end = time.time()
