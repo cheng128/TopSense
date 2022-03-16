@@ -50,7 +50,7 @@ class Remap():
         jsonl_base = '../data/jsonl_file/'
         filename = f'{self.args_guideword}_{self.args_threshold}_{self.args_way}'
         if self.args_type == 'test':
-            self.jsonl_file = f'{jsonl_base}test_jsonl/refactor_{filename}_{self.args_word}_cross_reference_t5_only_group_related.jsonl'
+            self.jsonl_file = f'{jsonl_base}test_jsonl/{filename}_{self.args_word}_cross_ref_t5_only_add_pos_match.jsonl'
         elif self.args_type == 'normal':
             self.jsonl_file = f'{jsonl_base}refactor_{filename}_map_cross_reference.jsonl'
         
@@ -111,18 +111,21 @@ class Remap():
         if self.group_related or self.group_mono_related:
             sentences.extend(self.group_related)
             sentences.extend(self.group_mono_related)
-        elif self.related_list:
-            sentences. extend(self.related_list)
+        # elif self.related_list:
+            # sentences. extend(self.related_list)
         
         embeddings = self.model.encode(sentences, convert_to_tensor=True)
         cosine_scores = util.cos_sim(embeddings, embeddings)
 
         pairs = [cosine_scores[0][j] for j in range(1, len(cosine_scores))]
-        pairs = sorted(pairs, reverse=True)
-        top3_scores = pairs[:3]
-        similarity = sum(top3_scores) / len(top3_scores)
-                       
-        self.sense2top3scores[(sense['headword'], sense['en_def'])] = top3_scores 
+        scores = sorted(pairs, reverse=True)
+
+        if self.args_way == 'top3':
+            scores = scores[:3]            
+
+        similarity = sum(scores) / len(scores)
+ 
+        self.sense2scores[(sense['headword'], sense['en_def'])] = scores
 
         return similarity
         
@@ -135,57 +138,63 @@ class Remap():
         return sim_scores
     
     def cal_sim_scores(self, definitions):
-        if not self.related_list:
-            self.related_list = [self.category]
-        sim_scores = []
         
-        if self.related_list:
-            sim_scores = self.cal_related(sim_scores, definitions)
+        sim_scores = []
+        sim_scores = self.cal_related(sim_scores, definitions)
             
         sorted_sim_sense = sorted(sim_scores, key=lambda x: x[1], reverse=True)
         return sorted_sim_sense
     
-    def init_related_list(self, pos_data):
-        self.related_list = [self.category, self.supergroup]
-        for pos, groups in pos_data.items():
-            if pos in ['cat_num', 'interjections']:
-                continue
-            self.pos = self.pos_map[pos]
-            for group, words in groups.items():
-                self.group = group
-                for word in words:
-                    definitions = self.cam_map.get(word, {})
-                    if len(definitions) == 1:
-                        sense = definitions[0]
-                        self.related_list.append(sense['en_def'])
-                        if sense['pos'] == self.pos:
-                            score = 1
-                            store_data = self.gen_store_data(word, sense, score)
-                            self.map_data.append(store_data)
-                            # update related list
-                    else:
-                        if word.split()[-1].isdigit():
-                            target_word = ' '.join(word.split()[:-1])
-                            self.related_list.append(target_word)
-                        else:
-                            self.related_list.append(word)
+    # def init_related_list(self, pos_data):
+    #     self.related_list = [self.category, self.supergroup]
+    #     for pos, groups in pos_data.items():
+    #         if pos in ['cat_num', 'interjections']:
+    #             continue
+    #         self.pos = self.pos_map[pos]
+    #         for group, words in groups.items():
+    #             self.group = group
+    #             for word in words:
+    #                 definitions = self.cam_map.get(word, {})
+    #                 if len(definitions) == 1:
+    #                     sense = definitions[0]
+    #                     self.related_list.append(sense['en_def'])
+    #                     if sense['pos'] == self.pos:
+    #                         score = 1
+    #                         store_data = self.gen_store_data(word, sense, score)
+    #                         self.map_data.append(store_data)
+    #                         # update related list
+    #                 else:
+    #                     if word.split()[-1].isdigit():
+    #                         target_word = ' '.join(word.split()[:-1])
+    #                         self.related_list.append(target_word)
+    #                     else:
+    #                         self.related_list.append(word)
              
-        print('after:', len(self.related_list))
+    #     print('after:', len(self.related_list))
 
     def monosemous_word(self):
         for word in self.words:
             definitions = self.cam_map.get(word, {})
-            if len(definitions) == 1:
+            if len(definitions) == 1 and definitions[0]['pos'] == self.pos:
                 sense = definitions[0]
                 self.group_mono_related.append(sense['en_def'])
                 self.seen.append([word, self.pos, self.group])
             else:
                 if word.split()[-1].isdigit():
-                    target_word = ' '.join(word.split()[:-1])
+                    print(word)
+                    target_word = ' '.join(word.split()[:-1]).lower()
                     self.group_mono_related.append(target_word)
-                else:
+                    self.seen.append([word, self.pos, self.group])
+                elif len(definitions) == 1 or not definitions:
+                    if len(definitions) == 1 and definitions[0]['pos'] != self.pos:
+                        print('len(definition)==1 but pos !=', word)
+                    elif not definitions:
+                        print('not in dictionary:', word)
+                        
                     self.group_mono_related.append(word)
-        print(self.group_mono_related)
+                    self.seen.append([word, self.pos, self.group])
+        if 'taste' in self.words:   
+            print('group_mono_related:\n', self.group_mono_related)
 
     def polysemous_word(self):
         for word in self.words:
@@ -197,20 +206,15 @@ class Remap():
                         score = float(sorted_sim_sense[0][1])
                         sense = sorted_sim_sense[0][0]
                         self.queue.append([score, word, sense])
-                else:
-                    if word.split()[-1].isdigit():
-                        target_word = ' '.join(word.split()[:-1])
-                        self.group_related.append(target_word)
-                    else:
-                        self.group_related.append(word)
     
-    def find_idx(self, last_idx, value, top3_scores):
-        while last_idx > -1:
-            if value > top3_scores[last_idx]:
-                last_idx -= 1
+    def find_idx(self, value, scores): 
+        idx = 0
+        while idx < len(scores):
+            if value < scores[idx]:
+                idx += 1
             else:
                 break
-        return last_idx + 1
+        return idx
 
     def update_similarity_score(self, definitions, first_sense):
 
@@ -234,11 +238,12 @@ class Remap():
         max_sense = ''
 
         for sense, value in pairs.items(): 
-            top3_scores = self.sense2top3scores[(headword, sense)]
-            insert_idx = self.find_idx(len(top3_scores) - 1, value, top3_scores)
-            top3_scores.insert(insert_idx, value)
-            top3_scores = top3_scores[:3]
-            similarity = sum(top3_scores) / len(top3_scores)
+            scores = self.sense2scores[(headword, sense)]
+            insert_idx = self.find_idx(value, scores)
+            scores.insert(insert_idx, value)
+            if self.args_way == 'top3':
+                scores = scores[:3]
+            similarity = sum(scores) / len(scores)
             if similarity > max_similarity:
                 max_similarity = similarity
                 max_sense = sense
@@ -289,7 +294,7 @@ class Remap():
             self.write_file()
             for category, pos_data in tqdm(categories.items()):
                 self.category = category
-                self.init_related_list(pos_data)
+                # self.init_related_list(pos_data)
                 for pos, groups in pos_data.items():
                     if pos in ['cat_num', 'interjections']:
                         continue
@@ -299,7 +304,7 @@ class Remap():
                         self.group_related = [supergroup, category]
                         self.group_mono_related = []
                         self.queue = []
-                        self.sense2top3scores = {}
+                        self.sense2scores = {}
                         self.group = group
                         self.words = words
                         # put other ponosemous word into queue
