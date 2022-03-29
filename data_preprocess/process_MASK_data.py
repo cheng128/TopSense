@@ -52,8 +52,8 @@ def one_word_examples(headword, sent_en, topic, reserve=False):
             
         if find and count == 0:
             if reserve:
-                reconstruct.append(word + ' [MASK]')
-                topic_construct.append(word + f'{topic}')
+                reconstruct.append(f'{word} [MASK]')
+                topic_construct.append(f'{word} {topic}')
             else:
                 reconstruct.append('[MASK]')
                 topic_construct.append(f'{topic}')
