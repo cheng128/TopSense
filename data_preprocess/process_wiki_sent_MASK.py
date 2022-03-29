@@ -2,7 +2,7 @@ import json
 import random
 import argparse
 from tqdm import tqdm
-from process_MASK_data import *
+from utils import *
 
 def load_data(num, version):
     filename = f'../data/wiki/append_highest/{num}_{version}_wiki_id2sents_highest.json'
@@ -11,7 +11,9 @@ def load_data(num, version):
     with open(filename) as f:
         word_id2sents = json.loads(f.read())        
     
-    with open('../data/remap.word_id.topics.examples.json') as f:
+    remap_file = '../data/0.6_remap.word_id.topics.examples.json'
+    print('remap file:', remap_file)
+    with open(remap_file) as f:
         word_id2topics = json.loads(f.read())
     
     return word_id2sents, word_id2topics
@@ -30,7 +32,7 @@ def main():
 
     word_id2sents, word_id2topics = load_data(num, version)
     
-    filename = f'../data/training_data/{directory}/filtered_{num}_{version}_{reserve}_highest_masked.tsv'
+    filename = f'../data/training_data/{directory}/0.6_reremap_{num}_{version}_{reserve}.tsv'
 #     filename = f'../data/training_data/{num}-gbooks.tsv'
     print('save: ', filename)
     with open(filename, 'a') as f:
@@ -40,25 +42,18 @@ def main():
                 if word_data['pos'] == 'noun':
                     topics = word_data['topics']
                     headword = value[0]
-                    sentences = value[-1]
+                    sentences = list(set(value[-1]))
                     for topic in list(set(topics)):
                         topic = '['+ topic +']'
                         for sent_en in sentences:
                             sent_en = sent_en.replace('\n', '')
-                            if len(headword.split()) == 1 and '-' not in headword:
-                                topic_sent, masked_sent = one_word_examples(headword, 
-                                                                            sent_en, 
-                                                                            topic, 
-                                                                            reserve)
-                            else:
-                                topic_sent, masked_sent = multi_words_examples(headword,
-                                                                            sent_en,
-                                                                            topic, 
-                                                                            reserve)
+                            topic_sent, masked_sent = handle_examples(headword, 
+                                                                      sent_en, 
+                                                                      topic, 
+                                                                      reserve)
                             if topic_sent and masked_sent:
                                 f.write('\t'.join([sent_en, topic_sent, 
                                                    masked_sent]) + '\n')
-                else:
-                    print(key)
+                                
 if __name__ == '__main__':
     main()
