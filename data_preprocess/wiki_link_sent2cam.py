@@ -70,8 +70,7 @@ def cal_similarity(first_sent, sense, def_emb_dict):
 
     return cosine_scores[0][0]
 
-def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict):
-    
+def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict): 
     # all senses of this word
     definitions = word2def[word]
     if len(definitions) == 1:
@@ -124,8 +123,6 @@ def main():
     for href_word, sents in tqdm(href_word2sents.items()):
         if href_word in href_word2id:
             word_id, score = href_word2id[href_word]
-            if word_id == 'major.noun.02':
-                print(sents)
             word_id2sents[word_id].append([href_word[1], score, sents])
 
     # with open(save_filename, 'w') as f:
