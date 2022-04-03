@@ -152,7 +152,10 @@ def main():
                 loop.set_description(f'Epoch {epoch}')
                 loop.set_postfix(loss=loss.item()) 
             test_loss_record.append(str(float(loss)))
-            
+        
+        if epoch >= 10 and epoch % 5 == 0:
+            temp_dir_path = dir_path.replace(f'{epeochs}epochs', f'{epoch}epochs')
+            model.save_pretrained(temp_dir_path) 
     
     if args.save:
         model.save_pretrained(dir_path)
