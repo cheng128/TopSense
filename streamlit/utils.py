@@ -55,6 +55,11 @@ def load_map():
 orig_new_map, emb_map, filename, def_emb_map = load_map()
 word2defs, def2data = load_cambridge()
 
+def check_is_noun(word):
+    if word in word2defs:
+        return True
+    else:
+        return False
 
 def load_model(directory='brt', model_name='remap_10epochs'):
     mlm = pipeline('fill-mask',
@@ -68,6 +73,16 @@ def load_spacy_sbert():
     return model, spacy_model
 
 sbert, spacy_model = load_spacy_sbert()
+
+def rescal_cos_score(score):
+    rescal_score = 1 - np.arccos(min(float(score), 1)) / np.pi
+    return rescal_score
+
+def reweight_prob(prob):
+    complement_prob = 1 - prob
+    weight = torch.sigmoid(torch.tensor(prob))
+    reweighted_probs = m(torch.tensor([(prob + weight), complement_prob]))
+    return float(reweighted_probs[0])
 
 # predict topics and perform the WSD
 def find_target_word(sent):
@@ -110,10 +125,22 @@ def sort_sense(targetword, token_score, sentence, RESERVE):
     def_sent_score = calculate_def_sent_score(guide_def, sentence, targetword)
     
     # calculate cosine similarity score between topics and definitions
-    weight_score = {}
-    for sense in guide_def:
-        confidence, topic_score = calculate_topic_conf_and_score(sense, token_score, RESERVE)
-        weight_score[sense] = confidence * topic_score + (1-confidence) * def_sent_score[sense]
+    weight_score = defaultdict(lambda: 0)
+    for topic, confidence in token_score.items():
+        if topic in emb_map:
+            topic_emb = emb_map[topic]
+            for sense in guide_def:
+                sense_emb = sbert.encode(sense, convert_to_tensor=True)
+                cosine_scores = util.pytorch_cos_sim(sense_emb, topic_emb)
+                sorted_scores = sorted(cosine_scores[0].cpu(), reverse=True)
+                top3_scores = [rescal_cos_score(score) for score in sorted_scores[:3]]
+                confidence =  reweight_prob(token_score[topic])
+                sense_score = confidence * sum(top3_scores) / len(top3_scores) +\
+                                    (1 - confidence) * def_sent_score[sense]
+                weight_score[sense] += sense_score  
+
+    for sense, score in weight_score.items():
+        weight_score[sense] = score / len(token_score)
     
     sorted_sense = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
     return sorted_sense
@@ -128,13 +155,17 @@ def lemmatize(word):
 
 
 def add_guideword_to_word_definitions(word):
+
     definitions = word2defs[word][:]
     guide_def = []
     for sense in word2defs[word]:
         data = def2data.get((word, sense), '')
         if data:
             guideword = data['guideword']
-            sense_add_guideword = guideword[1:-1] + ' ' + sense
+            if guideword:
+                sense_add_guideword = guideword[1:-1] + ' ' + sense
+            else:
+                sense_add_guideword = sense
             guide_def.append(sense_add_guideword)
         else:
             guide_def.append(sense)

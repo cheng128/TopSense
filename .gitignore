@@ -155,6 +155,8 @@ evaluation/data
 evaluation/results
 data/
 model/
-fast_tokenizer/
-topic_tokenizer/
+tokenizer_casedFalse/
+tokenizer_casedTrue/
 demo-linggle-api.py
+*.ipynb
+*.sh

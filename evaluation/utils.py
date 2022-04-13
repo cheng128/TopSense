@@ -1,3 +1,5 @@
+import os
+import pdb
 import json
 import pickle
 import spacy
@@ -25,40 +27,55 @@ def parse_argument(args):
 
 
 # ============== decide save file name ==================
-def gen_save_filename(sentence_only, mfs_bool, topic_only,
+def gen_save_filename(sentence_only, mfs_bool, topic_only, reserve,
                        topic_model_name, filetype, reweight,
                         sbert_model, postfix):
-    directory = topic_model_name.split('/')[0]
+    directory = '_'.join(topic_model_name.split('/')[:-1])
     model_name = topic_model_name.split('/')[-1]
     
     prefix = f'./results/{directory}/'
     if sentence_only:
-        save_file = f'{prefix}{filetype}_sentence_only.tsv'
+        save_file = f'{prefix}{filetype}_sentence_only_{sbert_model}.tsv'
     elif mfs_bool:
         save_file = f'{prefix}{filetype}_most_frequent.tsv'
     elif topic_only:
-        save_file = f'{prefix}{model_name}_{filetype}_reweight{reweight}_topicOnly_{sbert_model}_{postfix}.tsv'
+        save_file = f'{prefix}{model_name}_{filetype}_reweight{reweight}_reserve{reserve}_topicOnly_{sbert_model}_{postfix}.tsv'
     else:
-        save_file = f'{prefix}{model_name}_{filetype}_reweight{reweight}_{sbert_model}_{postfix}.tsv'
+        save_file = f'{prefix}{model_name}_{filetype}_reweight{reweight}_reserve{reserve}_{sbert_model}_{postfix}.tsv'
     print('save file: ', save_file)
     return save_file
 
 # ============ subfunctions in process function ================
+def gen_token_scores(mlm_results):
+    token_score = {}
+    for idx, r in enumerate(mlm_results):
+        if r['token_str'].startswith('['):
+            topic = ' '.join(r['token_str'].split(' ')[1:])[:-1]
+            token_score[topic.lower()] = r['score']
+        continue
+    return token_score
+
 def gen_guide_def(spacy_model, targetword, word2defs, def2guideword):
-    try:
-        word = spacy_model(targetword)[0].lemma_
-    except:
-        word = spacy_model(targetword)[0].text
+    if len(targetword.split()) > 1 :
+        word = targetword
+    else:
+        try:
+            word = spacy_model(targetword)[0].lemma_
+        except:
+            word = spacy_model(targetword)[0].text
         
     definitions = word2defs[word][:]
-    guide_def = []
-    for sense in word2defs[word]:
-        guideword = def2guideword.get(sense, '')
-        if guideword:
-            guide_def.append(guideword + ' ' + sense)
-        else:
-            guide_def.append(sense)
-    return guide_def
+    # guide_def = []
+    # for sense in definitions:
+    #     data = def2guideword.get((word, sense), '')
+    #     if data:
+    #         guideword = data['guideword']
+    #         sense_add_guideword = guideword[1:-1] + ' ' + sense
+    #         guide_def.append(sense_add_guideword)
+    #     else:
+    #         guide_def.append(sense)
+    # return guide_def
+    return definitions
 
 def calculate_def_sent_score(sent, guide_def, SBERT):
     sentence_defs = [sent]
@@ -69,7 +86,7 @@ def calculate_def_sent_score(sent, guide_def, SBERT):
 
     def_sent_score = {}
     for j in range(1, len(cos_scores)):
-        def_sent_score[sentence_defs[j]]  = rescal_cos_score(cos_scores[0][j].cpu())
+        def_sent_score[sentence_defs[j]]  = rescale_cos_score(cos_scores[0][j].cpu())
     return def_sent_score
 
 # ============ MAIN FUNCTION ================
@@ -97,13 +114,8 @@ def process_evaluation_data(evaluation_data, filetype, sent2ans, first_sense,
                            ans, senses, [], save_file)
             else:
                 input_sent = handle_examples(spacy_model, targetword, sent, reserve)
-                results = MLM(input_sent)
-                token_score = {}
-                for idx, r in enumerate(results):
-                    if r['token_str'].startswith('['):
-                        topic = ' '.join(r['token_str'].split(' ')[1:])[:-1]
-                        token_score[topic] = r['score']
-                    continue
+                mlm_results = MLM(input_sent)
+                token_score = gen_token_scores(mlm_results)
                 topics = list(token_score.keys())
 
                 results = process(sent, SBERT, spacy_model, targetword, 
@@ -111,9 +123,22 @@ def process_evaluation_data(evaluation_data, filetype, sent2ans, first_sense,
                                   reserve, sentence_only, topic_only, reweight)
                 senses = [line[0].replace('\n', '').strip() 
                          for line in results]
-                if senses[0] == ans:
+                
+                # if not senses:
+                #     write_data(mfs_bool, sentence_only, input_sent, targetword,
+                #                ans, senses, topics, save_file)
+                #     total_count += 1
+                #     continue
+                if ans.endswith(senses[0]):
                     top_one += 1
-                rank_score += 1 / (senses.index(ans) + 1)
+                for idx, sense in enumerate(senses):
+                    if ans.endswith(sense):
+                        rank_score += 1 / (idx + 1)
+                # if senses[0] == ans:
+                #     top_one += 1
+                
+                # if ans in senses:
+                #     rank_score += 1 / (senses.index(ans) + 1)
                 write_data(mfs_bool, sentence_only, input_sent, targetword,
                        ans, senses, topics, save_file)
             total_count += 1
@@ -136,8 +161,8 @@ def load_data(filetype):
     with open('../data/words2defs.json') as f:
         word2defs = json.loads(f.read())
         
-    with open('../data/def2guide.json') as f:
-        def2guideword = json.loads(f.read())
+    with open('../data/def2data.pickle', 'rb') as f:
+        def2guideword = pickle.load(f) 
 
     return data, word2defs, def2guideword
 
@@ -157,6 +182,7 @@ def load_topic_emb(model_name):
         
     with open(filename, 'rb') as f:
         emb_map = pickle.load(f)
+
     return emb_map
             
 def load_model(model):
@@ -189,9 +215,9 @@ def reweight_prob(prob):
     reweighted_probs = m(torch.tensor([(prob + weight), complement_prob]))
     return float(reweighted_probs[0])
 
-def rescal_cos_score(score):
-    rescal_score = 1 - np.arccos(min(float(score), 1)) / np.pi
-    return rescal_score
+def rescale_cos_score(score):
+    rescale_score = 1 - np.arccos(min(float(score), 1)) / np.pi
+    return rescale_score
 
 # =============== replace targetword in sentence ================
 

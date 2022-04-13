@@ -30,32 +30,36 @@ def load_data():
 
     with open('../data/word_sense2chdef_level.json') as f:
         word_sense2chdef_level = json.load(f)
+        
+    with open('../data/orig_new.json') as f:
+        orig_new = json.load(f)
     
-    return word2defs, def2guideword, word_sense2chdef_level
+    return word2defs, def2guideword, word_sense2chdef_level, orig_new
 
 sbert_model = 'sentence-t5-xl'
 SBERT = SentenceTransformer(sbert_model)
-MLM = load_model('remap/hybrid/cross_20_simple_True_5epochs')
+# MLM = load_model('remap/hybrid/20_5e-06_20_True_5epochs_1e-05')
+MLM = load_model('remap/hybrid/wiki_reserve_20_True_4epochs_1e-05')
 reweight = True
 topic_only = False
 RESERVE = True
 emb_map = load_topic_emb(sbert_model)
-word2defs, def2guideword, word_sense2chdef_level = load_data()
+word2defs, def2guideword, word_sense2chdef_level, orig_new = load_data()
 
 class WSDRequest(BaseModel):
     sentence: dict
 
 def gen_guide_def(word):
-    definitions = word2defs[word][:]
-    guide_def = []
+    definitions = set(word2defs[word][:])
+    guide_def = {}
     for sense in definitions:
         data = def2guideword.get((word, sense), '')
         if data['guideword']:
             guideword = data['guideword']
             sense_add_guideword = guideword[1:-1] + ' ' + sense
-            guide_def.append(sense_add_guideword)
+            guide_def[sense_add_guideword] = guideword
         else:
-            guide_def.append(sense)
+            guide_def[sense] = ''
     return guide_def
 
 def gen_mask_sent(sent_list, targetword, reserve=True):
@@ -87,16 +91,26 @@ def gen_store_data(token_scores, sorted_senses, lemma_word):
     sorted_topics = sorted(token_scores.items(), key=lambda x: x[1], reverse=True)
 
     for topic, score in sorted_topics:
-        topics_data.append({'text': topic, 'score': score})
+        topics_data.append({'text': topic, 
+                            'class': orig_new[topic],
+                            'score': str(round(score, 2))[1:]})
 
     output = []
-    for sense, _ in sorted_senses:
-        en_def = word_sense2chdef_level[lemma_word][sense]['en_def']
-        ch_def = word_sense2chdef_level[lemma_word][sense]['ch_def']
-        level = word_sense2chdef_level[lemma_word][sense]['level'] 
+    for sense, score in sorted_senses:
+        sense_data = word_sense2chdef_level[lemma_word][sense]
+        en_def = sense_data['en_def']
+        ch_def = sense_data['ch_def']
+        level = sense_data['level'] 
+        guideword = sense_data['guideword']
+        if score == 1:
+            score = str(1)
+        else:
+            score = str(round(score, 2))[1:]
         output.append({'en_def': en_def,
                     'ch_def': ch_def,
-                    'level': level})
+                    'level': level, 
+                    'score': score,
+                    'guideword': guideword})
     return topics_data, output
 
 @app.post("/api/wsd")
@@ -105,17 +119,21 @@ def wsd_sentence(item: WSDRequest):
     tokens = sentence['tokens']
     sent = [token['text'] for token in tokens]
     target_words = [(idx, token['lemma']) for idx, token in enumerate(tokens) 
-                    if token['pos'] == 'NOUN']
+                    if token['pos'] in ['NOUN', 'PROPN']]
 
     for idx, targetword in target_words:
         if targetword in word2defs:
             masked_sent = gen_mask_sent(tokens, targetword, RESERVE)
             mlm_results = MLM(masked_sent)
             token_scores = gen_token_scores(mlm_results)
-            guide_def = gen_guide_def(targetword)
-            def_sent_score = calculate_def_sent_score(sent, guide_def, SBERT)
-            sorted_senses = cal_weighted_score(token_scores, emb_map, guide_def, SBERT,
-                                                 reweight, topic_only, def_sent_score)
+            # guide_def = gen_guide_def(targetword)
+            definitions = list(set(word2defs[targetword][:]))
+            if len(definitions) > 1:
+                def_sent_score = calculate_def_sent_score(sent, definitions, SBERT)
+                sorted_senses = cal_weighted_score(token_scores, emb_map, definitions, SBERT,
+                                                    reweight, topic_only, def_sent_score)
+            else:
+                sorted_senses = [[definitions[0], 1]]
 
             topics_data, senses_data = gen_store_data(token_scores, sorted_senses, targetword)
             data = {'topics': topics_data, 'senses': senses_data}

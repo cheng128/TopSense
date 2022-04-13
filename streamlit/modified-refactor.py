@@ -34,7 +34,9 @@ choice = st.radio("model trained epochs", ['hybrid: highest_10_simple_True_5epoc
                                            'hybrid: highest_10_simple_True_10epochs',
                                            'hybrid: highest_20_simple_True_5epochs',
                                            'hybrid: highest_20_simple_True_10epochs',
-                                           'concat: highest_20_simple_False_10epochs'])
+                                           'concat: highest_20_simple_False_10epochs',
+                                           'concat: highest_10_simple_False_10epochs'])
+
 model_name = choice.split(':')[-1].replace(' ', '')
 directory = choice.split(':')[0]
 
@@ -155,7 +157,7 @@ def show_def(token_score):
     word = lemmatize(targetword)
     guide_def, sense2guideword = add_guideword_to_word_definitions(word)
     def_sent_score = calculate_def_sent_score(guide_def)
-    
+
     # calculate cosine similarity score between topics and definitions
     # weight_score = {}
     # for sense in guide_def:
