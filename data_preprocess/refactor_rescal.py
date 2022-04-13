@@ -147,7 +147,7 @@ class Remap():
             self.local_related = list(set(self.local_related))
             self.global_related = list(set(self.global_related))
     
-    def def rescal_cos_score(self, score):
+    def rescal_cos_score(self, score):
         rescale_score = 1 - np.arccos(min(float(score), 1)) / np.pi
         return rescale_score
 

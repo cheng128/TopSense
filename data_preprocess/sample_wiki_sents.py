@@ -1,33 +1,39 @@
 import json
 import random
 import argparse
+from collections import defaultdict
 from tqdm import tqdm
 
 def load_data():
-    with open('../data/wiki/fix_t5-xl_wiki_word_id2sents.json') as f:
+    with open('../data/wiki/append_highest/all_simple_wiki_id2sents_highest.json') as f:
         word_id2sents = json.loads(f.read())
         
     return word_id2sents
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-v', type=str)
     parser.add_argument('-n', type=int)
     
     args = parser.parse_args()
+    version = args.v
     num = args.n
     
     word_id2sents = load_data()
     
-    filename = f'../data/wiki/{num}-t5-xl_wiki_word_id2sents.json'
+    filename = f'../data/wiki/append_highest/{num}_{version}_wiki_id2sents_highest.json'
 
+    sample_word_id2sents = defaultdict(list)
     for word_id, value in tqdm(word_id2sents.items()):
         sentences = value[-1]
         if len(sentences) > num:
             sentences = random.sample(sentences, num)
-        value[-1] = sentences         
+        sample_word_id2sents[word_id].append(value[0])
+        sample_word_id2sents[word_id].append(value[1])
+        sample_word_id2sents[word_id].append(sentences)
     
     with open(filename, 'w') as f:
-        f.write(json.dumps(word_id2sents))
+        f.write(json.dumps(sample_word_id2sents))
     
     return
 

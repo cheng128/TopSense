@@ -60,22 +60,33 @@ def build_map(data):
     return href_word2sents
 
 
-def cal_similarity(first_sent, sense, def_emb_dict):  
+def cal_similarity(first_sent, sense, def_emb_dict, sents):  
     # contains definition and examples sentences and guide word embs
     def_embs = def_emb_dict[sense]
     embeddings = model.encode([first_sent], convert_to_tensor=True)
 
     #Compute cosine-similarities for each sentence with each other sentence
     cosine_scores = util.cos_sim(embeddings, def_embs)
+    sense2sense = cosine_scores[0][0]
 
-    return cosine_scores[0][0]
+    sents_embs = model.encode(sents, convert_to_tensor=True)
+    cosine_scores = util.cos_sim(sents_embs, def_embs)
+    scores = []
+    for i in range(len(cosine_scores)):
+        for j in range(1, len(def_embs)):
+            scores.append(cosine_scores[i][j])
+    top3_scores = sorted(scores, reverse=True)[:3]
 
-def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict): 
+    final_score = sense2sense + (top3_scores / len(top3_scores))
+
+    return final_score
+
+def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict, sents): 
     # all senses of this word
     definitions = word2def[word]
     if len(definitions) == 1:
         sense = definitions[0]
-        similarity = cal_similarity(first_sent, sense, def_emb_dict)
+        similarity = cal_similarity(first_sent, sense, def_emb_dict, sents)
         word_id = def2id[sense][0]['id']
         return word_id, similarity
     else:
@@ -84,7 +95,7 @@ def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict):
         proper_sense = ''
 
         for sense in definitions:
-            similarity = cal_similarity(first_sent, sense, def_emb_dict)
+            similarity = cal_similarity(first_sent, sense, def_emb_dict, sents)
             if similarity > max_similarity:
                 max_similarity = similarity
                 proper_sense = sense
@@ -96,10 +107,10 @@ def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict):
 def process_sent(href2def, href_word2sents, word2def, def2id, def_emb_dict):
     href_word2id = {}
     # ('bass (fish)', 'bass')
-    for href_word in tqdm(href_word2sents):
+    for href_word, sents in tqdm(href_word2sents.items):
         href, word = href_word
         first_sent = href2def[href]
-        word_id, score = find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict)
+        word_id, score = find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict, sents)
         if word_id and score:
             href_word2id[(href, word)] = (word_id, float(score))
     return href_word2id

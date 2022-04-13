@@ -44,7 +44,7 @@ class Remap():
             word = self.args_word
             self.brt_file = f'../data/remap_test_data/BRT_data_{word}_test_new.json'
         elif self.args_type == 'normal':
-            self.brt_file = f'../data/correct_BRT_data.json.json'
+            self.brt_file = f'../data/BRT_data.json'
     
     def init_savefile(self):
         jsonl_base = '../data/jsonl_file/'
@@ -71,11 +71,12 @@ class Remap():
         print('threshold:', self.args_threshold)
         print('----------')
         print('read brt file:', self.brt_file)
+        print('write jsonl file:', self.jsonl_file)
     
     def gen_store_data(self, word, sense, score):
         data = {'super_group': self.supergroup,
                 'category': self.category,
-                'pos': sense['pos'],
+                'pos': sense['pos'] if sense else self.pos,
                 'brt_word': word,
                 'group': self.group,
                 'word_id': sense['id'],
@@ -86,8 +87,8 @@ class Remap():
     
     def write_file(self):
         map_data = self.map_data
-        map_data = sorted(map_data, key=lambda x: x['category'])
-        map_data = sorted(map_data, key=lambda x: x['group'])
+        # map_data = sorted(map_data, key=lambda x: x['category'])
+        # map_data = sorted(map_data, key=lambda x: x['group'])
         with open(self.jsonl_file, 'w') as f:
             for data in map_data:
                 f.write(json.dumps(data))
@@ -124,7 +125,7 @@ class Remap():
             scores = scores[:3]            
 
         similarity = sum(scores) / len(scores)
- 
+        
         self.sense2scores[(sense['headword'], sense['en_def'])] = scores
 
         return similarity
@@ -144,57 +145,27 @@ class Remap():
             
         sorted_sim_sense = sorted(sim_scores, key=lambda x: x[1], reverse=True)
         return sorted_sim_sense
-    
-    # def init_related_list(self, pos_data):
-    #     self.related_list = [self.category, self.supergroup]
-    #     for pos, groups in pos_data.items():
-    #         if pos in ['cat_num', 'interjections']:
-    #             continue
-    #         self.pos = self.pos_map[pos]
-    #         for group, words in groups.items():
-    #             self.group = group
-    #             for word in words:
-    #                 definitions = self.cam_map.get(word, {})
-    #                 if len(definitions) == 1:
-    #                     sense = definitions[0]
-    #                     self.related_list.append(sense['en_def'])
-    #                     if sense['pos'] == self.pos:
-    #                         score = 1
-    #                         store_data = self.gen_store_data(word, sense, score)
-    #                         self.map_data.append(store_data)
-    #                         # update related list
-    #                 else:
-    #                     if word.split()[-1].isdigit():
-    #                         target_word = ' '.join(word.split()[:-1])
-    #                         self.related_list.append(target_word)
-    #                     else:
-    #                         self.related_list.append(word)
-             
-    #     print('after:', len(self.related_list))
 
     def monosemous_word(self):
         for word in self.words:
             definitions = self.cam_map.get(word, {})
             if len(definitions) == 1 and definitions[0]['pos'] == self.pos:
                 sense = definitions[0]
+                store_data = self.gen_store_data(word, sense, 1)
+                self.map_data.append(store_data)
                 self.group_mono_related.append(sense['en_def'])
                 self.seen.append([word, self.pos, self.group])
             else:
-                if word.split()[-1].isdigit():
-                    print(word)
+                if len(word.split()) > 1 and word.split()[-1].isdigit():
                     target_word = ' '.join(word.split()[:-1]).lower()
                     self.group_mono_related.append(target_word)
                     self.seen.append([word, self.pos, self.group])
-                elif len(definitions) == 1 or not definitions:
-                    if len(definitions) == 1 and definitions[0]['pos'] != self.pos:
-                        print('len(definition)==1 but pos !=', word)
-                    elif not definitions:
-                        print('not in dictionary:', word)
-                        
+                elif len(definitions) <= 1:
                     self.group_mono_related.append(word)
                     self.seen.append([word, self.pos, self.group])
-        if 'taste' in self.words:   
-            print('group_mono_related:\n', self.group_mono_related)
+        self.group_mono_related = list(set(self.group_mono_related))
+        # if 'taste' in self.words:   
+            # print('group_mono_related:\n', self.group_mono_related)
 
     def polysemous_word(self):
         for word in self.words:
@@ -253,13 +224,14 @@ class Remap():
     def clear_queue(self):
         start = time.time()
         
-        print('queue length:', len(self.queue))
+        # print('queue length:', len(self.queue))
         while self.queue:
             first_item, self.queue = self.find_max(self.queue)
             score, word, first_sense = first_item
             store_data = self.gen_store_data(word, first_sense, score)
             self.map_data.append(store_data)
             self.update_related(first_sense, score)
+            self.group_related = list(set(self.group_related))
 
             # update similarity score of all definitions in queue to rerank the queue
             temp = []
@@ -270,7 +242,7 @@ class Remap():
                 temp.append([score, word, sense])
             self.queue = temp
         end = time.time()
-        print(f'{self.pos} {self.group} clear queue spend: {end-start}')
+        # print(f'{self.pos} {self.group} clear queue spend: {end-start}')
                 
     def find_max(self, queue):
         max_item = queue[0]
@@ -294,13 +266,11 @@ class Remap():
             self.write_file()
             for category, pos_data in tqdm(categories.items()):
                 self.category = category
-                # self.init_related_list(pos_data)
                 for pos, groups in pos_data.items():
                     if pos in ['cat_num', 'interjections']:
                         continue
                     self.pos = self.pos_map[pos]
                     for group, words in groups.items():
-                        print(f'pos: {pos} group: {group}')
                         self.group_related = [supergroup, category]
                         self.group_mono_related = []
                         self.queue = []
