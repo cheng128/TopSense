@@ -11,10 +11,10 @@ tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
 def load_data():
     with open('../data/words2defs.json') as f:
-        word2def = json.loads(f.read())
+        word2def = json.load(f)
     
     with open('../data/remap.word_id.topics.examples.json') as f:
-        word_id2topics = json.loads(f.read())
+        word_id2topics = json.load(f)
         
     target_words = set([value['headword'] 
                         for key, value in word_id2topics.items()
@@ -55,11 +55,11 @@ def build_map(sent, page_def, href_map, word2def, target_words, wiki_wiki):
 def load_processed_file(href2def, word2sents):
     
     with open(href2def) as f:
-        page_def = json.loads(f.read())
+        page_def = json.load(f)
     
     with open(word2sents) as f:
-        href_map = defaultdict(list, json.loads(f.read()))
-    
+        href_map = defaultdict(list, json.load(f))
+        
     return page_def, href_map
 
 def main():
