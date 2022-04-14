@@ -4,13 +4,29 @@
 Map Roget's thesaurus to Cambridge dictionary   
 
 ##### Input
-- ./data/BRT_data.json  
-#####  Output
-- ./data/jsonl_file/{OUTPUT_FILENAME}.jsonl  
-##### Program file
-- ./data_preprocess/refactor_cross_pos_related.py   
+1. Partial data
 ```
-python refactor_cross_pos_related.py -f normal
+- ./data/mapping_test_data/*.json
+```
+2. All data
+```
+- ./data/BRT_data.json  
+```
+#####  Output
+```
+./data/jsonl_file/guideword{True/False}_threshold{0.0}_calway{avg/top3}.jsonl  
+```
+
+##### Program file
+- ./data_preprocess/map_thesaurus2cambridge.py  
+1. Test partial data
+WORD = bank/bass/taste/slug/mole/issue/interest/bow/cone/sentence/star/bow
+```
+python map_thesaurus2cambridge.py -f test -w [WORD]
+```
+2. Map whole thesaurus to Cambridge dictionary
+```
+python map_thesaurus2cambridge.py -f normal
 ```  
 
 ---
@@ -84,7 +100,7 @@ python train_MLM.py
 ---
 ### TODO List
 #### 1. Add Wikipedia sentences of words not in Cambridge dictionary into training data
-#### 2. Add Wikipedia sentences of monosemous word into trainig data 
+#### 2. Add Wikipedia sentences of monosemous words into trainig data 
 #### 3. Other POS tags
 
 
