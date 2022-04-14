@@ -4,59 +4,83 @@
 Map Roget's thesaurus to Cambridge dictionary   
 ### 1-1 Use partial BRT data to check the result
 WORD = mole/bass/taste/issue/interest/bow/cone/slug/sentence/bank/star/duty
-
 #### Command
+Enter this command line below in data_preprocess directory.
 ```
-python map_thesaurus2cambridge.py -f test -w [WORD]  
+python map_thesaurus2cambridge.py -f test -w [WORD] -c top3 -r 0 -g 1 
 ```
-
 #### Input
 ```
 ./data/mapping_test_data/BRT_data_{WORD}_test.json
 ```
-
 ####  Output
 ```
-./data/jsonl_file/test_jsonl/guideword{True/False}_threshold{0.0}_calway{avg/top3}_{WORD}.jsonl
+./data/jsonl_file/test_jsonl/True_0.0_top3_{WORD}.jsonl
 ```
 
 ### 1-2 Map all BRT data to Cambridge dictionary
-
 #### Command
 ```
-python map_thesaurus2cambridge.py -f normal 
+python map_thesaurus2cambridge.py -f normal -c top3 -r 0 -g 1
 ```  
-
 #### Input
 ```
 ./data/BRT_data.json  
 ```
 ####  Output
 ```
-./data/jsonl_file/guideword{True/False}_threshold{0.0}_calway{avg/top3}.jsonl  
+./data/jsonl_file/True_0.0_top3_all.jsonl  
 ```
-
-
 ---
 ## Step 2
 Transform Dictionary examples into two kinds of training data  
  (reserve target word and don't reserve target word)    
-
+### 2-1 Preprocess Cambridge data with mapped category
+#### Command
+Enter this command line below in data_preprocess directory.
+```
+python process_mapped_data.py -t 0
+```
 #### Input
-- ./data/jsonl_file/{OUTPUT_FILENAME}.jsonl (Output file from Step 1)  
-- ./data/cambridge.sense.000.jsonl (Cambridge dictionary data)  
+```
+./data/jsonl_file/True_0.0_top3_all.jsonl 
+./data/cambridge.sense.000.jsonl
+```
 #### Output
-- ./data/training_data/{OUTPUT_FILENAME}.tsv   
-(origin sentence, topic sentence, masked sentence)  
-#### Program file
-##### Preprocess Cambridge data with mapped category
-- ./data_preprocess/process_mapped_data.py 
-##### Transform into MASK sentence
+```
+./data/0.word_id.topics.examples.json
+```
+### 2-2 Transform into MASK sentence
+#### Command
+Enter this command line below in data_preprocess directory.
+```
+python process_MASK_data.py -r 0
+python process MASK_data.py -r 1
+```
+#### Input
+```
+./data/0.word_id.topics.examples.json
+```
+#### Output
+data in file: origin sentence, topic sentence, masked sentence
+```
+./data/training_data/False_cambridge.tsv
+./data/training_data/True_cambridge.tsv  
+```
+
+
 - ./data_preprocess/process_MASK_data.py
 
 ---
 ## Step 3
-Use Simple English Wikipedia data to augment training data 
+Use Simple English Wikipedia data to augment training data.
+### 3-1 Preprocess Simple English Wikipedia data 
+Fetcg the first sentences in linked pages, collect sentences that be linked to the page
+#### Command
+#### Input
+#### Output
+### 3-2 Transform into MASK sentences
+#### Command
 #### Input
 - ./data/wiki/
 #### Output 
@@ -66,11 +90,17 @@ Use Simple English Wikipedia data to augment training data
 1. Preprocess Simple English Wikipedia data
 2. Transform into MASK sentence
 -  ./data_preprocess/process_wiki_sent_MASK.py
+### 3-2 Concatenate Cambridge training data with Wikipedia training data
+#### Command
+#### Input
+#### Output
+
 
 ---
 ## Step 4
 Fine-tune BertForMaskedLM to predict topics  
-### 1. First add topic tokens into tokenizer (caution: cased/uncased)
+### 4-1 First add topic tokens into tokenizer (caution: cased/uncased)
+#### Command
 #### Input
 #### Output
 - ./tokenizer_{casedTrue/casedFalse}
