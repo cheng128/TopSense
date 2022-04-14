@@ -2,59 +2,67 @@
 
 ## Step 1
 Map Roget's thesaurus to Cambridge dictionary   
+### 1-1 Use partial BRT data to check the result
+WORD = mole/bass/taste/issue/interest/bow/cone/slug/sentence/bank/star/duty
 
-##### Input
-1. Partial data
+#### Command
 ```
-- ./data/mapping_test_data/*.json
+python map_thesaurus2cambridge.py -f test -w [WORD]  
 ```
-2. All data
+
+#### Input
 ```
-- ./data/BRT_data.json  
+./data/mapping_test_data/BRT_data_{WORD}_test.json
 ```
-#####  Output
+
+####  Output
+```
+./data/jsonl_file/test_jsonl/guideword{True/False}_threshold{0.0}_calway{avg/top3}_{WORD}.jsonl
+```
+
+### 1-2 Map all BRT data to Cambridge dictionary
+
+#### Command
+```
+python map_thesaurus2cambridge.py -f normal 
+```  
+
+#### Input
+```
+./data/BRT_data.json  
+```
+####  Output
 ```
 ./data/jsonl_file/guideword{True/False}_threshold{0.0}_calway{avg/top3}.jsonl  
 ```
 
-##### Program file
-- ./data_preprocess/map_thesaurus2cambridge.py  
-1. Test partial data
-WORD = bank/bass/taste/slug/mole/issue/interest/bow/cone/sentence/star/bow
-```
-python map_thesaurus2cambridge.py -f test -w [WORD]
-```
-2. Map whole thesaurus to Cambridge dictionary
-```
-python map_thesaurus2cambridge.py -f normal
-```  
 
 ---
 ## Step 2
-Transform Dictionary examples into two kinds of training data 
- (reserve target word and don't reserve target word)   
+Transform Dictionary examples into two kinds of training data  
+ (reserve target word and don't reserve target word)    
 
-##### Input
-- ./data/jsonl_file/{OUTPUT_FILENAME}.jsonl (Output file from Step 1)
-- ./data/cambridge.sense.000.jsonl (Cambridge dictionary data) 
-##### Output
+#### Input
+- ./data/jsonl_file/{OUTPUT_FILENAME}.jsonl (Output file from Step 1)  
+- ./data/cambridge.sense.000.jsonl (Cambridge dictionary data)  
+#### Output
 - ./data/training_data/{OUTPUT_FILENAME}.tsv   
-(origin sentence, topic sentence, masked sentence)
-##### Program file
+(origin sentence, topic sentence, masked sentence)  
+#### Program file
 ##### Preprocess Cambridge data with mapped category
-- ./data_preprocess/process_mapped_data.py
+- ./data_preprocess/process_mapped_data.py 
 ##### Transform into MASK sentence
 - ./data_preprocess/process_MASK_data.py
 
 ---
 ## Step 3
 Use Simple English Wikipedia data to augment training data 
-##### Input
+#### Input
 - ./data/wiki/
-##### Output 
+#### Output 
 - ./data/training_data/{OUTPUT_FILENAME}.tsv
 (origin sentence, topic sentence, masked sentence)
-##### Program file
+#### Program file
 1. Preprocess Simple English Wikipedia data
 2. Transform into MASK sentence
 -  ./data_preprocess/process_wiki_sent_MASK.py
@@ -63,10 +71,10 @@ Use Simple English Wikipedia data to augment training data
 ## Step 4
 Fine-tune BertForMaskedLM to predict topics  
 ### 1. First add topic tokens into tokenizer (caution: cased/uncased)
-##### Input
-##### Output
+#### Input
+#### Output
 - ./tokenizer_{casedTrue/casedFalse}
-##### Program file
+#### Program file
 - ./data_preprocess/gen_tokenizer.py
 ```
 python gen_tokenizer.py -c 0
@@ -75,11 +83,11 @@ python gen_tokenizer.py -c 1
 
 
 ### 2. Train model
-##### Input
+#### Input
 - preprocessed training data from **data/training_data**
-##### Output 
+#### Output 
 - a fine-tuned masked language model
-##### Program file
+#### Program file
 ```
 python train_MLM.py
 ```
@@ -88,14 +96,14 @@ python train_MLM.py
 - 100 sents
 - 300 sents
 ### 3-1 Sample evaluation sentences from Voice of America (VOA) and Macmillian English Dictionary (MED)
-##### Input
-##### Output
-##### Program file
+#### Input
+#### Output
+#### Program file
 
 ### 3-2 Pre-calculate topic embeddings
-##### Input
-##### Output
-##### Progrma file
+#### Input
+#### Output
+#### Progrma file
 
 ---
 ### TODO List
