@@ -5,7 +5,7 @@ Map Roget's thesaurus (BRT) to Cambridge dictionary
 ### 1-1 Use part of BRT data to check the result
 WORD = mole/bass/taste/issue/interest/bow/cone/slug/sentence/bank/star/duty
 #### Command
-Run this command in data_preprocess directory.
+Run this command under data_preprocess directory.
 ```
 python map_thesaurus2cambridge.py -f test -w [WORD] -c top3 -r 0 -g 1 
 ```
@@ -37,7 +37,7 @@ Transform Dictionary examples into two kinds of training data
  (reserve target word and don't reserve target word)    
 ### 2-1 Preprocess Cambridge data with mapped category
 #### Command
-Run this command in data_preprocess directory.
+Run this command under data_preprocessdirectory.
 The final model used the data that set the -t argument to 0.6
 ```
 python process_mapped_data.py -t 0
@@ -53,7 +53,7 @@ python process_mapped_data.py -t 0
 ```
 ### 2-2 Transform into MASK sentence
 #### Command
-Run this command in data_preprocess directory.
+Run this command under data_preprocess directory.
 ```
 python process_MASK_data.py -r 0
 python process MASK_data.py -r 1
@@ -71,7 +71,7 @@ data in file: origin sentence, topic sentence, masked sentence
 ---
 ## Step 3
 Use Simple English Wikipedia data to augment training data.
-Run these commands in data_preprocess directory.
+Run these commands under data_preprocess directory.
 ### 3-1 Preprocess Simple English Wikipedia data 
 Fetch the first sentences in linked pages, collect sentences that are linked to the page
 #### Command
@@ -102,6 +102,7 @@ python cal_def_emb.py
 ```
 ./data/sentence-t5-xl_def_emb.pickle
 ```
+#### 3-2-2 Map Wikipedia link page to Cambridge sense
 #### Command
 ``` 
 python wiki_link_sent2cam.py -v simple
@@ -191,24 +192,10 @@ python gen_tokenizer.py -c 0
 python train_MLM_further.py -e 15 -g remap/concat -f training_data/no_reserve/0.6_remap_20_False_concat.tsv -n 20 -r 0
 ```
 
-### 4-3 Evaluation
-- 100 sents
-- 300 sents
-
-### 4-3-1 Sample evaluation sentences from Voice of America (VOA) and Macmillian English Dictionary (MED)
-#### Input
-#### Output
-#### Program file
-
-### 4-3-2 Pre-calculate topic embeddings
-#### Input
-#### Output
-#### Progrma file
-
-### 4-4 Best model now 
+### 4-3 Best model now 
 learning rate: 1e-05  
 batch size: 64  
-#### 4-4-1 First train with the file below for about 15 epochs:
+#### 4-3-1 First train with the file below for about 15 epochs:
 ```
 training_data/no_reserve/0.6_remap_20_False_concat.tsv
 ```
@@ -224,7 +211,7 @@ python train_MLM_with_validation.py -e 15 -g concat -f training_data/no_reserve/
 ```
 ./model/concat/0.6_val_sec_20_False_15epochs_1e-05
 ```
-#### 4-4-2 Further traing the model with the file below for about 4 epochs
+#### 4-3-2 Further traing the model with the file below for about 4 epochs
 ```
 training_data/reserve/0.6_remap_20_True_concat.tsv
 ```
@@ -240,7 +227,22 @@ python train_MLM_with_validation.py -e 4 -g hybrid -f training_data/reserve/0.6_
 ```
 ./model/hybrid/wiki_reserve_20_True_4epochs_1e-05
 ```
-
+### 4-4 Evaluation
+Run this command under evaluation directory.
+Evalute model with MAP top1 and MRR scores.
+#### Command
+```
+python evaluation_formula.py -f 300 -m hybrid/wiki_reserve_20_True_4epochs_1e-05 -w 1 -r 1
+```
+#### Input
+```
+./evaluation/data/300_sentences.json
+./evaluation/data/300_sentences_ans.json
+```
+#### Output
+```
+./evaluation/results/hybrid/wiki_reserve_20_True_4epochs_1e-05_300_reweightTrue_reserveTrue_sentence-t5-xl_formula.tsv
+```
 ---
 ### TODO List
 #### 1. Add Wikipedia sentences of words not in Cambridge dictionary into training data
