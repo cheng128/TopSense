@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from utils import *
 
 app = FastAPI()
-model_name = 'hybrid_True_10epochs_base_concat'
+model_name = 'wiki_reserve_20_True_4epochs_1e-05'
 MLM = load_model('hybrid', model_name)
 RESERVE = is_reserve(model_name)
 
@@ -17,5 +17,4 @@ def return_sense(sentence: str, response_class: JSONResponse):
     sorted_senses = sort_sense(targetword, token_score, sentence, RESERVE)
     message = {'topics': topics,
               'senses': sorted_senses}
-#     message = {'succeed'}
     return {'message': message}

@@ -38,8 +38,7 @@ def load_data():
 
 sbert_model = 'sentence-t5-xl'
 SBERT = SentenceTransformer(sbert_model)
-# MLM = load_model('remap/hybrid/20_5e-06_20_True_5epochs_1e-05')
-MLM = load_model('remap/hybrid/wiki_reserve_20_True_4epochs_1e-05')
+MLM = load_model('hybrid/wiki_reserve_20_True_4epochs_1e-05')
 reweight = True
 topic_only = False
 RESERVE = True

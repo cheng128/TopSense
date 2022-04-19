@@ -5,7 +5,7 @@ from collections import defaultdict
 from tqdm import tqdm
 
 def load_data():
-    with open('../data/wiki/append_highest/all_simple_wiki_id2sents_highest.json') as f:
+    with open('../data/wiki/all_simple_wiki_word_id2sents_highest.json') as f:
         word_id2sents = json.loads(f.read())
         
     return word_id2sents
@@ -21,7 +21,7 @@ def main():
     
     word_id2sents = load_data()
     
-    filename = f'../data/wiki/append_highest/{num}_{version}_wiki_id2sents_highest.json'
+    filename = f'../data/wiki/{num}_{version}_wiki_word_id2sents_highest.json'
 
     sample_word_id2sents = defaultdict(list)
     for word_id, value in tqdm(word_id2sents.items()):

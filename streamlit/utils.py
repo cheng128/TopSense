@@ -64,7 +64,7 @@ def check_is_noun(word):
 def load_model(directory='brt', model_name='remap_10epochs'):
     mlm = pipeline('fill-mask',
                   model=f"../model/{directory}/{model_name}",
-                  tokenizer="../remap_tokenizer")
+                  tokenizer="../tokenizer_casedFalse")
     return mlm
 
 def load_spacy_sbert():

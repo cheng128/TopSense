@@ -5,13 +5,12 @@ from tqdm import tqdm
 from utils import *
 
 def load_data(num, version):
-    filename = f'../data/wiki/append_highest/{num}_{version}_wiki_id2sents_highest.json'
-    # filename = f'../data/wiki/{num}_{version}_t5-xl_wiki_word_id2sents.json'
+    filename = f'../data/wiki/{num}_{version}_wiki_word_id2sents_highest.json'
     print('read:', filename)
     with open(filename) as f:
         word_id2sents = json.loads(f.read())        
     
-    remap_file = '../data/0.6_remap.word_id.topics.examples.json'
+    remap_file = '../data/0.0.word_id.topics.examples.json'
     print('remap file:', remap_file)
     with open(remap_file) as f:
         word_id2topics = json.loads(f.read())
@@ -32,11 +31,12 @@ def main():
 
     word_id2sents, word_id2topics = load_data(num, version)
     
-    filename = f'../data/training_data/{directory}/0.6_reremap_{num}_{version}_{reserve}.tsv'
-#     filename = f'../data/training_data/{num}-gbooks.tsv'
+    filename = f'../data/training_data/{directory}/{num}_{version}_{reserve}_highest.tsv'
+
     print('save: ', filename)
     with open(filename, 'a') as f:
         for key, value in tqdm(word_id2sents.items()):
+            # if the word id has topics
             if key in word_id2topics:
                 word_data = word_id2topics[key]
                 if word_data['pos'] == 'noun':

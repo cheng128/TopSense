@@ -18,12 +18,12 @@ def write_data(filename, data_list):
             
 def brt_groups_results(reserve=False):
     
-    read_file_name = '../data/0.6_remap.word_id.topics.examples.json'
+    read_file_name = '../data/0.0.word_id.topics.examples.json'
     print('read:', read_file_name)
     with open(read_file_name) as f:
         data = json.loads(f.read())
     
-    training_filename = f'../data/training_data/0.6_cross_ref_reserve{reserve}_cambridge.tsv'
+    training_filename = f'../data/training_data/{reserve}_cambridge.tsv'
     print('save training file:', training_filename)
     
     data_list = []
