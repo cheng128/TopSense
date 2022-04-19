@@ -100,7 +100,7 @@ python cal_def_emb.py
 ```
 #### Output
 ```
-./data/def_emb.pickle
+./data/sentence-t5-xl_def_emb.pickle
 ```
 #### Command
 ``` 
@@ -109,7 +109,7 @@ python wiki_link_sent2cam.py -v simple
 #### Input
 ```
 ./data/words2defs.json
-./data/def_emb.pickle
+./data/sentence-t5-xl_def_emb.pickle
 ./data/wiki/simple_wiki_href2def.json
 ./data/wiki/simple_wiki_href_word2sents.json
 ./data/cambridge.sense.000.jsonl
@@ -156,8 +156,10 @@ NUM = 10/20/all
 python concat_training_data.py -v simple -r [RESERVE] -n [NUM]
 ```
 #### Input
+```
 ./data/training_data/{RESERVE}_cambridge.tsv
 ./data/training_data/{RESERVE DIRECTORY}/{NUM}_simple_{RESERVE}_highest.tsv
+```
 #### Output
 ```
 ./data/training_data/{RESERVE DIRECTORY}/{NUM}_{RESERVE}_concat_highest.tsv
@@ -176,8 +178,9 @@ python gen_tokenizer.py -c 0
 ./data/BRT_data.json
 ```
 #### Output
+```
 ./tokenizer_casedFalse
-
+```
 ### 4-2 Train model
 #### Input
 - preprocessed training data from **data/training_data**
