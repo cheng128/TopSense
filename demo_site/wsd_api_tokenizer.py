@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from evaluation.evaluation_formula import cal_weighted_score
-from evaluation.utils import load_model, load_topic_emb, gen_token_scores, calculate_def_sent_score
+from evaluation.utils import load_model, load_topic_emb, calculate_def_sent_score
 from sentence_transformers import SentenceTransformer, util
 
 app = FastAPI()
@@ -36,15 +36,21 @@ def load_data():
     
     return word2defs, def2guideword, word_sense2chdef_level, orig_new
 
+def load_tokenizer_map():
+    with open('../all_tokenizer_map.json') as f:
+        tokenizer_map = json.load(f)
+        
+    return tokenizer_map
 
 sbert_model = 'sentence-t5-xl'
 SBERT = SentenceTransformer(sbert_model)
-MLM = load_model('hybrid/wiki_reserve_new_20_True_4epochs_1e-05')
+MLM = load_model('hybrid/wiki_reserve_20_True_4epochs_1e-05')
 reweight = True
 topic_only = False
 RESERVE = True
 emb_map = load_topic_emb(sbert_model)
 word2defs, def2guideword, word_sense2chdef_level, orig_new = load_data()
+tokenizer_map = load_tokenizer_map()
 
 class WSDRequest(BaseModel):
     sentence: dict
@@ -112,6 +118,19 @@ def gen_store_data(token_scores, sorted_senses, lemma_word):
                     'score': score,
                     'guideword': guideword})
     return topics_data, output
+
+def gen_token_scores(mlm_results):
+    token_score = {}
+    for idx, r in enumerate(mlm_results):
+        if r['token_str'].startswith('['):
+            try:
+                origin_topic = tokenizer_map[str(r['token'])]
+                topic = ' '.join(origin_topic.split(' ')[1:])[:-1].lower()
+                token_score[topic] = r['score']
+            except:
+                print(r['token'])
+                continue
+    return token_score
 
 @app.post("/api/wsd")
 def wsd_sentence(item: WSDRequest):
