@@ -217,7 +217,7 @@ training_data/reserve/0.6_remap_20_True_concat.tsv
 ```
 #### Command
 ```
-python train_MLM_with_validation.py -e 4 -g hybrid -f training_data/reserve/0.6_remap_20_True_concat.tsv -n 20 -r 1 -lr 1e-05 -m wiki_reserve
+python train_MLM_with_validation.py -e 4 -g hybrid -f training_data/reserve/0.6_remap_20_True_concat.tsv -n 20 -r 1 -lr 1e-05 -m wiki_reserve -pre ./model/concat/0.6_val_sec_20_False_15epochs_1e-05
 ```
 #### Input
 ```

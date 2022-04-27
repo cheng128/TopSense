@@ -32,9 +32,8 @@ def load_preprocessed(filename):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', help="#epochs", type=int)
-    parser.add_argument('-f', type=str) # preprocess file name
+    parser.add_argument('-f', type=str) # training file name
     parser.add_argument('-g', type=str) # directoy
-    parser.add_argument('--save', action="store_true")
     parser.add_argument('-n', type=str, default='all')
     parser.add_argument('-r', type=int, default=0)
     parser.add_argument('-lr', type=float, default=1e-5)
@@ -44,20 +43,10 @@ def main():
     filename = args.f
     reserve = bool(args.r)
     lr_rate = args.lr
-    print('lr_rate:', lr_rate)
-
-    map_dict = {'brt': 'brt', 'wiki': 'wikipedia', 'concat': 'concat', 'hybrid': 'hybrid',
-                'remap/cam': 'remap/cam', 'remap/concat': 'remap/concat', 'remap/hybrid': 'remap/hybrid',
-                'btwn': 'btwn'}
     
-    if args.save:
-        dir_path = f'./model/{map_dict[args.g]}/{args.n}_{reserve}_{epochs}epochs'
-        try:
-            os.mkdir(dir_path)
-        except:
-            dir_path += '_' + str(1)
-            os.mkdir(dir_path)
-        print('model will be saved in: ', dir_path)
+    dir_path = f'./model/{args.g}/{args.n}_{reserve}_{epochs}epochs'
+    os.mkdir(dir_path)
+    print('model will be saved in: ', dir_path)
         
     tokenizer_name = 'tokenizer_casedFalse'
         
@@ -112,14 +101,13 @@ def main():
             loop.set_postfix(loss=loss.item()) 
         loss_record.append([str(epoch), str(float(loss))])
     
-    if args.save:
-        model.save_pretrained(dir_path)
-        with open(f'{dir_path}/spec.txt', 'w') as f:
-            f.write(f'python train_MLM.py -e {epochs} -g {args.g} -f {filename} -n {args.n} -r {args.r}\n')
-            f.write(f'tokenizer: {tokenizer_name}\n')
-            f.write(f'pretrained model: {base_pretrained_model}\n')
-            for loss in loss_record:
-                f.write('\t'.join(loss) + '\n')
+    model.save_pretrained(dir_path)
+    with open(f'{dir_path}/spec.txt', 'w') as f:
+        f.write(f'python train_MLM.py -e {epochs} -g {args.g} -f {filename} -n {args.n} -r {args.r}\n')
+        f.write(f'tokenizer: {tokenizer_name}\n')
+        f.write(f'pretrained model: {base_pretrained_model}\n')
+        for loss in loss_record:
+            f.write('\t'.join(loss) + '\n')
             
             
 if __name__ == '__main__':

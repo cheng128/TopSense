@@ -16,7 +16,7 @@ def cal_weighted_score(token_score, emb_map, guide_def, SBERT, reweight, topic_o
                 sense_emb = SBERT.encode(sense, convert_to_tensor=True)
                 cosine_scores = util.pytorch_cos_sim(sense_emb, topic_emb)
                 sorted_scores = sorted(cosine_scores[0].cpu(), reverse=True)
-                top3_scores = [rescale_cos_score(score) for score in sorted_scores[:3]]
+                top3_scores = [rescal_cos_score(score) for score in sorted_scores[:3]]
                 if reweight:
                     confidence =  reweight_prob(token_score[topic])
                 else:

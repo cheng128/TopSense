@@ -161,3 +161,13 @@ demo-linggle-api.py
 *.ipynb
 *.sh
 evaluation/Untitled.ipynb
+all_tokenizer_map.json
+all_tokenizer_rebuild.json
+model.json
+tokenizer_map.json
+tokenizer_rebuild.json
+tokenizer_casedFalse copy/added_tokens.json
+tokenizer_casedFalse copy/special_tokens_map.json
+tokenizer_casedFalse copy/tokenizer.json
+tokenizer_casedFalse copy/tokenizer_config.json
+tokenizer_casedFalse copy/vocab.txt

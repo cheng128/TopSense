@@ -26,7 +26,7 @@ def main():
 
     new_tokens = get_new_tokens(cased)
     num_added_toks = tokenizer.add_tokens(new_tokens)
-    tokenizer.save_pretrained(f'../topic_tokenizer_cased{cased}')
+    tokenizer.save_pretrained(f'../tokenizer_cased{cased}')
 
 if __name__ == '__main__':
     main()

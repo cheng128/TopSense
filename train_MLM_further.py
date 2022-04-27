@@ -83,8 +83,6 @@ def main():
     print("use tokenizer:", tokenizer_name)
     
     base_pretrained_model =  './model/remap/concat/0.6_val_sec_20_False_15epochs_1e-05'
-    # base_pretrained_model =  './model/remap/concat/0.6_val_sec_20_False_20epochs_5e-06' 
-    # base_pretrained_model = './model/remap/concat/0.6_val_all_False_30epochs_1e-05'
     print('pretrained:')
     model = BertForMaskedLM.from_pretrained(base_pretrained_model)
     

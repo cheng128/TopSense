@@ -16,7 +16,7 @@ def clean_text(sentence):
     lemmatized = [lemmatize(s) for s in clear_punct] 
     return lemmatized
 
-def handle_examples(headword, sent_en, topic, reserve=False):
+def handle_examples(headword, sent_en, topic, reserve=False, pos_tag="NOUN"):
     reconstruct = []
     topic_construct = []
     doc = nlp(sent_en)
@@ -25,10 +25,10 @@ def handle_examples(headword, sent_en, topic, reserve=False):
     count = 0
     for token in doc:
         find = False
-        if token.text == headword:
+        if token.text == headword and pos_tag.upper() == token.pos_:
             word = token.text
             find = True
-        elif token.lemma_ == headword:
+        elif token.lemma_ == headword and pos_tag.upper() == token.pos_:
             word = token.lemma_
             find = True
 

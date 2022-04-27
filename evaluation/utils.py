@@ -30,7 +30,7 @@ def parse_argument(args):
 def gen_save_filename(sentence_only, mfs_bool, topic_only, reserve,
                        topic_model_name, filetype, reweight,
                         sbert_model, postfix):
-    directory = '_'.join(topic_model_name.split('/')[:-1])
+    directory = topic_model_name.split('/')[0]
     model_name = topic_model_name.split('/')[-1]
     
     prefix = f'./results/{directory}/'
@@ -86,7 +86,7 @@ def calculate_def_sent_score(sent, guide_def, SBERT):
 
     def_sent_score = {}
     for j in range(1, len(cos_scores)):
-        def_sent_score[sentence_defs[j]]  = rescale_cos_score(cos_scores[0][j].cpu())
+        def_sent_score[sentence_defs[j]]  = rescal_cos_score(cos_scores[0][j].cpu())
     return def_sent_score
 
 # ============ MAIN FUNCTION ================
@@ -188,7 +188,7 @@ def load_topic_emb(model_name):
 def load_model(model):
     model_path = f"../model/{model}"
 
-    tokenizer = "../remap_tokenizer"
+    tokenizer = "../tokenizer_casedFalse"
     nlp = pipeline('fill-mask',
            model=model_path,
            tokenizer=tokenizer)
@@ -215,7 +215,7 @@ def reweight_prob(prob):
     reweighted_probs = m(torch.tensor([(prob + weight), complement_prob]))
     return float(reweighted_probs[0])
 
-def rescale_cos_score(score):
+def rescal_cos_score(score):
     rescale_score = 1 - np.arccos(min(float(score), 1)) / np.pi
     return rescale_score
 

@@ -30,16 +30,13 @@ m = nn.Softmax(dim=0)
 
 # set up the environment variables
 st.title("TopSense Prototype")
-choice = st.radio("model trained epochs", ['hybrid: highest_10_simple_True_5epochs',
-                                           'hybrid: highest_10_simple_True_10epochs',
-                                           'hybrid: highest_20_simple_True_5epochs',
-                                           'hybrid: highest_20_simple_True_10epochs',
-                                           'concat: highest_20_simple_False_10epochs',
-                                           'concat: highest_10_simple_False_10epochs'])
+# choice = st.radio("model trained epochs", ['hybrid: wiki_reserve_20_True_4epochs_1e-05'])
 
-model_name = choice.split(':')[-1].replace(' ', '')
-directory = choice.split(':')[0]
+# model_name = choice.split(':')[-1].replace(' ', '')
+# directory = choice.split(':')[0]
 
+model_name = 'wiki_reserve_new_20_True_4epochs_1e-05'
+directory = 'hybrid'
 
 def is_reserve(model_name):
     return 'True' in model_name
@@ -88,7 +85,7 @@ word2defs, def2data = load_cambridge()
 def load_model(directory='brt', model_name='remap_10epochs'):
     mlm = pipeline('fill-mask',
                   model=f"../model/{directory}/{model_name}",
-                  tokenizer="../remap_tokenizer")
+                  tokenizer="../tokenizer_casedFalse")
     return mlm
 
 mlm = load_model(directory, model_name)
@@ -158,11 +155,6 @@ def show_def(token_score):
     guide_def, sense2guideword = add_guideword_to_word_definitions(word)
     def_sent_score = calculate_def_sent_score(guide_def)
 
-    # calculate cosine similarity score between topics and definitions
-    # weight_score = {}
-    # for sense in guide_def:
-    #     confidence, topic_score = calculate_topic_conf_and_score(sense, token_score)
-    #     weight_score[sense] = confidence * topic_score + (1-confidence) * def_sent_score[sense]
     weight_score = defaultdict(lambda: 0)
     for topic, confidence in token_score.items():
         if topic in emb_map:
@@ -189,8 +181,6 @@ def show_def(token_score):
     result = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
     
     st.subheader(f'Possible word sense of "{targetword}"')
-    # ans = result[0]
-    # st.markdown(ans[0] + '  ' + str(round(ans[1], 3))[1:])
     for idx, ans in enumerate(result):
         guideword = sense2guideword[ans[0]][0]
         sense = sense2guideword[ans[0]][1]
