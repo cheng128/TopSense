@@ -7,12 +7,14 @@ try:
 except:
     from utils import *
 
-def cal_weighted_score(token_score, emb_map, guide_def, SBERT, reweight, topic_only, def_sent_score):
+def cal_weighted_score(token_score, topic_emb_map, definitions, SBERT,
+                        reweight, topic_only, def_sent_score):
+
     weight_score = defaultdict(lambda: 0)
     for topic, confidence in token_score.items():
-        if topic in emb_map:
-            topic_emb = emb_map[topic].cuda()
-            for sense in guide_def:
+        if topic in topic_emb_map:
+            topic_emb = topic_emb_map[topic].cuda()
+            for sense in definitions:
                 sense_emb = SBERT.encode(sense, convert_to_tensor=True)
                 cosine_scores = util.pytorch_cos_sim(sense_emb, topic_emb)
                 sorted_scores = sorted(cosine_scores[0].cpu(), reverse=True)
@@ -34,22 +36,44 @@ def cal_weighted_score(token_score, emb_map, guide_def, SBERT, reweight, topic_o
     result = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
     return result
 
-
 def formula(sent, SBERT, spacy_model, targetword, token_score, 
-            word2defs, emb_map, def2guideword, reserve, 
-            sentence_only, topic_only, reweight):
+            word2defs, topic_emb_map, sentence_only, topic_only, reweight):
     
-    # add guideword in front of sense
-    guide_def = gen_guide_def(spacy_model, targetword, word2defs, def2guideword)
+    # guide_def = gen_guide_def(spacy_model, targetword, word2defs)
+    definitions = word2defs[targetword][:]
 
     # calculate sentence and definitions similarity
-    def_sent_score = calculate_def_sent_score(sent, guide_def, SBERT)
+    def_sent_score = calculate_def_sent_score(sent, definitions, SBERT)
 
     if sentence_only:
         sorted_score = sorted(def_sent_score.items(), key=lambda x: x[1], reverse=True)
         return sorted_score
-
-    result = cal_weighted_score(token_score, emb_map, guide_def, SBERT, reweight, topic_only, def_sent_score)
+    result = cal_weighted_score(token_score, topic_emb_map, definitions, SBERT,
+                                reweight, topic_only, def_sent_score)
+    # weight_score = defaultdict(lambda: 0)
+    # for topic, confidence in token_score.items():
+    #     if topic in topic_emb_map:
+    #         topic_emb = topic_emb_map[topic].cuda()
+    #         for sense in definitions:
+    #             sense_emb = SBERT.encode(sense, convert_to_tensor=True)
+    #             cosine_scores = util.pytorch_cos_sim(sense_emb, topic_emb)
+    #             sorted_scores = sorted(cosine_scores[0].cpu(), reverse=True)
+    #             top3_scores = [rescal_cos_score(score) for score in sorted_scores[:3]]
+    #             if reweight:
+    #                 confidence =  reweight_prob(token_score[topic])
+    #             else:
+    #                 confidence =  token_score[topic]
+    #             if topic_only:
+    #                 sense_score = confidence * sum(top3_scores) / len(top3_scores)
+    #             else:   
+    #                 sense_score = confidence * sum(top3_scores) / len(top3_scores) +\
+    #                                  (1 - confidence) * def_sent_score[sense]
+    #             weight_score[sense] += sense_score 
+                
+    # for key, value in weight_score.items():
+    #     weight_score[key] = value / len(token_score)
+        
+    # result = sorted(weight_score.items(), key=lambda x: x[1], reverse=True)
     return result
 
 def main():
@@ -57,24 +81,29 @@ def main():
     parser.add_argument('-f', type=str) # evaluation data: 100, 200, 300
     parser.add_argument('-m', type=str, default='brt/cambridge_False_10epochs')
     parser.add_argument('-r', type=int, default=0)  # reserve target word
-    parser.add_argument('-s', type=int, default=0)  # sentence only, default False
+    parser.add_argument('-s', type=int, default=0)  # sentence only
     parser.add_argument('-mfs', type=int, default=0) # most frequent sense
     parser.add_argument('-t', type=int, default=0)  # topic_only
     parser.add_argument('-w', type=int, default=0)  # reweight
     parser.add_argument('-sm', type=str, default='sentence-t5-xl') # sbert_model
     
     args = parser.parse_args()
+
+    assert((args.mfs + args.s + args.t) <= 1)
+
     filetype, topic_model_name, mfs_bool, topic_only,\
         reweight, reserve, sentence_only, sbert_model = parse_argument(args)
+
     
     print_info(topic_model_name, mfs_bool, topic_only, reweight, 
                 reserve, sentence_only, sbert_model)
     
     # load data, sbert, spacy, emb_map
-    evaluation_data, word2defs, def2guideword = load_data(filetype)
+    evaluation_data, word2defs = load_data(filetype)
     SBERT, spacy_model = load_spacy_sbert(sbert_model)
-    emb_map = load_topic_emb(sbert_model)
-    
+    topic_emb_map = load_emb(f'../data/{sbert_model}_topic_embs.pickle')
+    sense_emb_map = load_emb(f'../data/{sbert_model}_sense_examples_embs.pickle')
+
     if filetype in ['100', '200', '300']:
         sent2ans = load_ans(filetype)
     else:
@@ -92,10 +121,8 @@ def main():
 
     process_evaluation_data(evaluation_data, filetype, sent2ans, first_sense,
                             mfs_bool, topic_only, reweight, reserve, sentence_only, 
-                            save_file, 
-                            MLM, SBERT, spacy_model, 
-                            word2defs, emb_map, def2guideword,
-                            formula) # calculate function
+                            save_file, MLM, SBERT, spacy_model, 
+                            word2defs, topic_emb_map, formula) # calculate function
 
 if __name__ == '__main__':
     main()

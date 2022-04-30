@@ -55,7 +55,7 @@ def gen_token_scores(mlm_results):
         continue
     return token_score
 
-def gen_guide_def(spacy_model, targetword, word2defs, def2guideword):
+def gen_guide_def(spacy_model, targetword, word2defs):
     if len(targetword.split()) > 1 :
         word = targetword
     else:
@@ -93,10 +93,8 @@ def calculate_def_sent_score(sent, guide_def, SBERT):
 
 def process_evaluation_data(evaluation_data, filetype, sent2ans, first_sense,
                             mfs_bool, topic_only, reweight, reserve, sentence_only, 
-                            save_file, 
-                            MLM, SBERT, spacy_model, 
-                            word2defs, emb_map, def2guideword,
-                            process):
+                            save_file, MLM, SBERT, spacy_model, 
+                            word2defs, topic_emb_map, process):
     total_count, rank_score, top_one = 0, 0, 0
     for targetword, sentences in tqdm(evaluation_data.items()):
         for sentence in sentences:
@@ -119,21 +117,17 @@ def process_evaluation_data(evaluation_data, filetype, sent2ans, first_sense,
                 topics = list(token_score.keys())
 
                 results = process(sent, SBERT, spacy_model, targetword, 
-                                  token_score, word2defs, emb_map, def2guideword, 
-                                  reserve, sentence_only, topic_only, reweight)
+                                  token_score, word2defs, topic_emb_map,
+                                   sentence_only, topic_only, reweight)
                 senses = [line[0].replace('\n', '').strip() 
                          for line in results]
                 
-                # if not senses:
-                #     write_data(mfs_bool, sentence_only, input_sent, targetword,
-                #                ans, senses, topics, save_file)
-                #     total_count += 1
-                #     continue
                 if ans.endswith(senses[0]):
                     top_one += 1
                 for idx, sense in enumerate(senses):
                     if ans.endswith(sense):
                         rank_score += 1 / (idx + 1)
+    
                 # if senses[0] == ans:
                 #     top_one += 1
                 
@@ -145,7 +139,7 @@ def process_evaluation_data(evaluation_data, filetype, sent2ans, first_sense,
 
     write_score(save_file, rank_score, top_one, total_count)
 
-# ============= load evaluation data, words2defs, def2guideword data ==============
+# ============= load evaluation data, words2defs data ==============
 def load_data(filetype):
     if filetype == 'mix':
         filename = './data/mix_sample.json'
@@ -159,12 +153,9 @@ def load_data(filetype):
         data = json.loads(f.read())
     
     with open('../data/words2defs.json') as f:
-        word2defs = json.loads(f.read())
-        
-    with open('../data/def2data.pickle', 'rb') as f:
-        def2guideword = pickle.load(f) 
+        word2defs = json.loads(f.read()) 
 
-    return data, word2defs, def2guideword
+    return data, word2defs
 
 def load_ans(filetype):
     with open(f'./data/{filetype}_sentences_ans.json') as f:
@@ -176,9 +167,8 @@ def load_mfs_data():
         mfs_data = json.loads(f.read())
     return mfs_data
 
-def load_topic_emb(model_name):
-    filename = f'../data/topic_emb/{model_name}_topic_embs.pickle'
-    print('load emb file: ', filename)
+def load_emb(filename):
+    print('load topic emb file: ', filename)
         
     with open(filename, 'rb') as f:
         emb_map = pickle.load(f)
