@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from evaluation.evaluation_formula import cal_weighted_score
-from evaluation.utils import load_model, load_topic_emb, gen_token_scores, calculate_def_sent_score
+from evaluation.utils import load_model, load_emb, gen_token_scores, calculate_def_sent_score
 from sentence_transformers import SentenceTransformer, util
 
 app = FastAPI()
@@ -43,24 +43,11 @@ MLM = load_model('hybrid/wiki_reserve_new_20_True_4epochs_1e-05')
 reweight = True
 topic_only = False
 RESERVE = True
-emb_map = load_topic_emb(sbert_model)
+emb_map = load_emb('../data/topic_emb/sentence-t5-xl_topic_embs.pickle')
 word2defs, def2guideword, word_sense2chdef_level, orig_new = load_data()
 
 class WSDRequest(BaseModel):
     sentence: dict
-
-def gen_guide_def(word):
-    definitions = set(word2defs[word][:])
-    guide_def = {}
-    for sense in definitions:
-        data = def2guideword.get((word, sense), '')
-        if data['guideword']:
-            guideword = data['guideword']
-            sense_add_guideword = guideword[1:-1] + ' ' + sense
-            guide_def[sense_add_guideword] = guideword
-        else:
-            guide_def[sense] = ''
-    return guide_def
 
 def gen_mask_sent(sent_list, targetword, reserve=True):
 

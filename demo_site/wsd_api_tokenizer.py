@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from evaluation.evaluation_formula import cal_weighted_score
-from evaluation.utils import load_model, load_topic_emb, calculate_def_sent_score
+from evaluation.utils import load_model, load_emb, calculate_def_sent_score
 from sentence_transformers import SentenceTransformer, util
 
 app = FastAPI()
@@ -48,7 +48,7 @@ MLM = load_model('hybrid/wiki_reserve_20_True_4epochs_1e-05')
 reweight = True
 topic_only = False
 RESERVE = True
-emb_map = load_topic_emb(sbert_model)
+topic_emb_map = load_emb('../data/sentence-t5-xl_topic_embs.pickle')
 word2defs, def2guideword, word_sense2chdef_level, orig_new = load_data()
 tokenizer_map = load_tokenizer_map()
 
@@ -150,7 +150,7 @@ def wsd_sentence(item: WSDRequest):
             definitions = list(set(word2defs[targetword][:]))
             if len(definitions) > 1:
                 def_sent_score = calculate_def_sent_score(sent, definitions, SBERT)
-                sorted_senses = cal_weighted_score(token_scores, emb_map, definitions, SBERT,
+                sorted_senses = cal_weighted_score(token_scores, topic_emb_map, definitions, SBERT,
                                                     reweight, topic_only, def_sent_score)
             else:
                 sorted_senses = [[definitions[0], 1]]
