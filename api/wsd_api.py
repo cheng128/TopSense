@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
-
+import sys
+sys.path.append('..')
 from TopSense.disambiguator_class import Disambiguator
 from TopSense.data_class import Data
 
@@ -33,14 +34,15 @@ def load_data():
 word_sense2chdef_level, orig_new = load_data()
 
 sbert_name = 'sentence-t5-xl'
-trained_model_name = 'hybrid/wiki_reserve_new_20_True_4epochs_1e-05' 
+trained_model_name = '../TopSense/model/hybrid/wiki_reserve_new_20_True_4epochs_1e-05' 
+tokenizer_name = '../TopSense/tokenizer_casedFalse'
 reserve = True
 reweight = True
 topic_only = False
 sentence_only = False
 
-DATA = Data(sbert_name, './TopSense/data')
-DISAMBIGUATOR = Disambiguator(DATA, trained_model_name,
+DATA = Data(sbert_name, '../TopSense/data')
+DISAMBIGUATOR = Disambiguator(DATA, trained_model_name, tokenizer_name,
                 reserve, sentence_only, reweight, topic_only)
 
 class WSDRequest(BaseModel):
@@ -51,7 +53,7 @@ def gen_store_data(token_scores, ranked_senses, lemma_word):
     sorted_topics = sorted(token_scores.items(), key=lambda x: x[1], reverse=True)
 
     for topic, score in sorted_topics:
-        topics_data.append({'text': topic, 
+        topics_data.append({'text': topic.capitalize(), 
                             'class': orig_new[topic],
                             'score': str(round(score, 2))[1:]})
 

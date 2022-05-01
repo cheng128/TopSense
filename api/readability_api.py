@@ -1,4 +1,3 @@
-import spacy
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
@@ -7,10 +6,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import sys
+sys.path.append('..')
+from TopSense.util import tokenize_processor
 
 app = FastAPI()
-
-spacy_model = spacy.load("en_core_web_sm")
 
 origins = ['*']
 app.add_middleware(
@@ -20,17 +20,6 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*']
 )
-
-def tokenize_processor(sentence):
-
-    doc = spacy_model(sentence)
-    tokens = []
-    for token in doc:
-        text = token.text
-        lemma = token.lemma_
-        pos = token.pos_
-        tokens.append({'text': text, 'lemma': lemma, 'pos': pos})
-    return tokens
 
 def ValidURL(url):
     return url and url.strip().startswith('http')
