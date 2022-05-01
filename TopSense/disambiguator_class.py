@@ -29,6 +29,7 @@ import numpy as np
 import torch.nn as nn
 from transformers import pipeline
 from collections import defaultdict
+from util import gen_masked_sent
 from sentence_transformers import util
 
 
@@ -51,9 +52,9 @@ class Disambiguator:
         self.MLM = self.load_trained_model()
 
     def load_trained_model(self):
-        model_path = f"../model/{self.trained_model_name}"
+        model_path = f"./model/{self.trained_model_name}"
 
-        tokenizer = "../tokenizer_casedFalse"
+        tokenizer = "./tokenizer_casedFalse"
         MLM = pipeline('fill-mask', model=model_path, tokenizer=tokenizer)
         return MLM
 
@@ -94,8 +95,12 @@ class Disambiguator:
         return sense_score
 
     def disambiguate(self, targetword, pos_tag, input_sentence, token_scores):
-        pos_tag = 'noun' if pos_tag == 'propn' else pos_tag
-        definitions = self.word2pos_defs[targetword][pos_tag][:]
+        pos_tag = 'noun' if pos_tag.lower() == 'propn' else pos_tag.lower()
+        definitions = self.word2pos_defs[targetword].get(pos_tag, '')
+            
+        if len(definitions) == 1:
+            return [[definitions[0], 1]]
+            
         def_sent_score = self.calculate_def_sent_score(input_sentence, definitions)
 
         if self.sentence_only:
@@ -104,8 +109,8 @@ class Disambiguator:
 
         weight_scores = defaultdict(lambda: 0)
         for topic, confidence in token_scores.items():
-            topic_emb = self.topic_embs_map.get(topic, '')
-            if topic_emb != '':
+            topic_emb = self.topic_embs_map.get(topic, None)
+            if topic_emb != None:
                 for sense in definitions:
                     sense_emb = self.SBERT.encode(sense, convert_to_tensor=True)
                     sense_score = self.cal_weighted_score(confidence, topic_emb, sense_emb, 
@@ -116,36 +121,7 @@ class Disambiguator:
             weight_scores[key] = value / len(token_scores)
             
         result = sorted(weight_scores.items(), key=lambda x: x[1], reverse=True)
-        return result
-
-    def gen_masked_sent(self, input_sentence, pos_tag, targetword):
-
-        reconstruct = []
-        doc = self.SPACY(input_sentence) 
-
-        find = False
-        for token in doc:
-            token_pos = 'NOUN' if token.pos_ == 'PROPN' else token.pos_
-            if pos_tag.upper() == token_pos and find == False:
-                if token.text.lower() == targetword:
-                    word = token.text
-                    find = True
-                elif token.lemma_.lower() == targetword:
-                    word = token.lemma_
-                    find = True
-
-                if find:
-                    if self.reserve:
-                        reconstruct.append(word + ' [MASK]')
-                    else:
-                        reconstruct.append('[MASK]')
-                    continue
-
-            reconstruct.append(token.text)
-
-        masked_sent = ' '.join(reconstruct)
-        masked_sent = '' if '[MASK]' not in masked_sent else masked_sent
-        return masked_sent 
+        return result  
 
     def gen_token_scores(self, mlm_results):
         token_score = {}
@@ -155,15 +131,17 @@ class Disambiguator:
                 token_score[topic.lower()] = r['score']
         return token_score
 
-    def predict_and_disambiguate(self, input_sentence, pos_tag, targetword):
-        masked_sent = self.gen_masked_sent(input_sentence, pos_tag, targetword)
-        if not masked_sent:
-            print(input_sentence)
+    def predict_and_disambiguate(self, sent_tokens, input_sentence, pos_tag, targetword):
+        if targetword in self.word2pos_defs:
+            masked_sent, _ = gen_masked_sent(sent_tokens, pos_tag, targetword, self.reserve)
+            if not masked_sent:
+                print(sent_tokens, input_sentence, pos_tag, targetword)
+            predicted_results = self.MLM(masked_sent)
+            token_scores = self.gen_token_scores(predicted_results)
+            ranked_senses = self.disambiguate(targetword, pos_tag, input_sentence, token_scores)
+            return ranked_senses, masked_sent, token_scores
+        else:
             return '', '', ''
-        predicted_results = self.MLM(masked_sent)
-        token_scores = self.gen_token_scores(predicted_results)
-        ranked_senses = self.disambiguate(targetword, pos_tag, input_sentence, token_scores)
-        return ranked_senses, masked_sent, token_scores
 
         
 

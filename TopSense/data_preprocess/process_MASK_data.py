@@ -4,10 +4,11 @@ into training data.
 import json
 import spacy
 import argparse
-from nltk import ngrams
-from random import sample
 from tqdm import tqdm
-from utils import *
+import sys
+sys.path.append("..")
+from util import gen_masked_sent, tokenize_processor
+
 
 nlp = spacy.load("en_core_web_sm")
 
@@ -34,11 +35,12 @@ def brt_groups_results(threshold=0.0, reserve=False, pos_tag='noun'):
                 topic = '['+ topic +']'
                 headword = v['headword']
                 for sent_en in v['examples']:
-                    topic_sent, masked_sent = handle_examples(headword, 
-                                                              sent_en, 
-                                                              topic, 
+                    sent_tokens = tokenize_processor(sent_en)
+                    masked_sent, topic_sent = gen_masked_sent(sent_tokens,
+                                                              pos_tag,
+                                                              headword,  
                                                               reserve,
-                                                              pos_tag)
+                                                              topic)
                     if topic_sent and masked_sent:
                         data_list.append([sent_en, topic_sent, masked_sent])
     

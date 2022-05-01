@@ -151,25 +151,10 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-evaluation/data
-evaluation/results
-data/
-model/
-tokenizer_casedFalse/
-tokenizer_casedTrue/
-demo-linggle-api.py
-*.ipynb
-*.sh
-evaluation/Untitled.ipynb
-all_tokenizer_map.json
-all_tokenizer_rebuild.json
-model.json
-tokenizer_map.json
-tokenizer_rebuild.json
-tokenizer_casedFalse copy/added_tokens.json
-tokenizer_casedFalse copy/special_tokens_map.json
-tokenizer_casedFalse copy/tokenizer.json
-tokenizer_casedFalse copy/tokenizer_config.json
-tokenizer_casedFalse copy/vocab.txt
-evaluation/Untitled.ipynb
-evaluation/Untitled.ipynb
+TopSense/evaluation/data
+TopSense/evaluation/results
+TopSense/data
+TopSense/tokenizer_casedFalse
+TopSense/notebooks
+TopSense/model
+

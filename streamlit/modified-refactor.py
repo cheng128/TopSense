@@ -45,7 +45,6 @@ def is_reserve(model_name):
 RESERVE = is_reserve(model_name)
 # =============================================
 
-
 # load auxiliary data
 @st.cache(allow_output_mutation=True)
 def load_cambridge():
@@ -61,21 +60,20 @@ def load_cambridge():
 @st.cache(allow_output_mutation=True)
 def load_map():
     with open('../data/orig_new.json') as f:
-        data = json.loads(f.read())
+        orig_new_map = json.loads(f.read())
+         
+    with open('../data/sentence-t5-xl_topic_embs.pickle', 'rb') as f:
+        topic_emb_map = pickle.load(f)
         
-    filename = '../data/topic_emb/sentence-t5-xl_topic_embs.pickle'
-    with open(filename, 'rb') as f:
-        emb_map = pickle.load(f)
-        
-    with open('../data/definition_emb.pickle', 'rb') as f:
+    with open('../data/sentence-t5-xl_sense_examples_embs.pickle', 'rb') as f:
         def_emb_map = pickle.load(f)
         
     with open('../data/orig_new.json') as f:
         topic_name_map = json.loads(f.read())
-    return data, emb_map, filename, def_emb_map, topic_name_map
+    return orig_new_map, topic_emb_map, def_emb_map, topic_name_map
 
 
-orig_new_map, emb_map, filename, def_emb_map, topic_name_map = load_map()
+orig_new_map, emb_map, def_emb_map, topic_name_map = load_map()
 word2defs, def2data = load_cambridge()
 # =================================================================
 
@@ -149,6 +147,20 @@ def reweight_prob(prob):
 
 reweight = 1
 topic_only = 0
+
+def calculate_def_sent_score(guide_def):
+    # sentence and definitions
+    sentence_defs = [sentence.replace(f'[{targetword}]', targetword)]
+    sentence_defs.extend(guide_def)
+    embs = sbert.encode(sentence_defs, convert_to_tensor=True)
+    
+    # calculate cosine similarity score between sentence and definitions
+    cos_scores = util.pytorch_cos_sim(embs, embs)
+    def_sent_score = {}
+
+    for j in range(1, len(cos_scores)):
+        def_sent_score[sentence_defs[j]]  = 1 - np.arccos(min(float(cos_scores[0][j].cpu()), 1)) / np.pi
+    return def_sent_score
 
 def show_def(token_score):
     word = lemmatize(targetword)
@@ -225,45 +237,30 @@ def add_guideword_to_word_definitions(word):
     return guide_def, sense2guideword
 
 
-def calculate_def_sent_score(guide_def):
-    # sentence and definitions
-    sentence_defs = [sentence.replace(f'[{targetword}]', targetword)]
-    sentence_defs.extend(guide_def)
-    embs = sbert.encode(sentence_defs, convert_to_tensor=True)
-    
-    # calculate cosine similarity score between sentence and definitions
-    cos_scores = util.pytorch_cos_sim(embs, embs)
-    def_sent_score = {}
+# def calculate_topic_conf_and_score(sense, token_score):
+#     # TODO: replace sbert.encode with def_emb_map
+#     embs = sbert.encode(sense, convert_to_tensor=True)
+#     max_score = float('-inf')
+#     max_confidence = float('-inf')
+#     max_topic = ''
+#     for topic in token_score:
+#         if topic in emb_map:
+#             cosine_scores = util.pytorch_cos_sim(embs, emb_map[topic])
+#             for j in range(len(emb_map[topic])):
+#                 score = 1 - np.arccos(min(float(cosine_scores[0][j].cpu()), 1)) / np.pi
+#                 if score > max_score:
+#                     max_score = score
+#                     max_topic = topic
+#                     max_confidence = token_score[topic]
+#                 elif score == max_score and token_score[topic] > max_confidence:
+#                     max_topic = topic
+#                     max_confidence = token_score[topic]
 
-    for j in range(1, len(cos_scores)):
-        def_sent_score[sentence_defs[j]]  = 1 - np.arccos(min(float(cos_scores[0][j].cpu()), 1)) / np.pi
-    return def_sent_score
-
-
-def calculate_topic_conf_and_score(sense, token_score):
-    # TODO: replace sbert.encode with def_emb_map
-    embs = sbert.encode(sense, convert_to_tensor=True)
-    max_score = float('-inf')
-    max_confidence = float('-inf')
-    max_topic = ''
-    for topic in token_score:
-        if topic in emb_map:
-            cosine_scores = util.pytorch_cos_sim(embs, emb_map[topic])
-            for j in range(len(emb_map[topic])):
-                score = 1 - np.arccos(min(float(cosine_scores[0][j].cpu()), 1)) / np.pi
-                if score > max_score:
-                    max_score = score
-                    max_topic = topic
-                    max_confidence = token_score[topic]
-                elif score == max_score and token_score[topic] > max_confidence:
-                    max_topic = topic
-                    max_confidence = token_score[topic]
-
-    if RESERVE:
-        confidence = reweight_confidence(token_score[max_topic])
-    else:
-        confidence = token_score[max_topic]
-    return (confidence, max_score)
+#     if RESERVE:
+#         confidence = reweight_confidence(token_score[max_topic])
+#     else:
+#         confidence = token_score[max_topic]
+#     return (confidence, max_score)
 
 
 def reweight_confidence(confidence):

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from evaluation.evaluation_formula import cal_weighted_score
-from evaluation.utils import load_model, load_emb, gen_token_scores, calculate_def_sent_score
+from evaluation.utils import load_model, load_emb, calculate_def_sent_score
 from sentence_transformers import SentenceTransformer, util
 
 app = FastAPI()
@@ -22,32 +22,51 @@ app.add_middleware(
 )
 
 def load_data():
-    with open('../data/words2defs.json') as f:
+    with open('../TopSense/data/words2defs.json') as f:
         word2defs = json.loads(f.read())
 
-    with open('../data/def2data.pickle', 'rb') as f:
+    with open('../TopSense/data/def2data.pickle', 'rb') as f:
         def2guideword = pickle.load(f) 
 
-    with open('../data/word_sense2chdef_level.json') as f:
+    with open('../TopSense/data/word_sense2chdef_level.json') as f:
         word_sense2chdef_level = json.load(f)
         
-    with open('../data/orig_new.json') as f:
+    with open('../TopSense/data/orig_new.json') as f:
         orig_new = json.load(f)
     
     return word2defs, def2guideword, word_sense2chdef_level, orig_new
 
+def load_tokenizer_map():
+    with open('../TopSense/data/all_tokenizer_map.json') as f:
+        tokenizer_map = json.load(f)
+        
+    return tokenizer_map
 
 sbert_model = 'sentence-t5-xl'
 SBERT = SentenceTransformer(sbert_model)
-MLM = load_model('hybrid/wiki_reserve_new_20_True_4epochs_1e-05')
+MLM = load_model('hybrid/wiki_reserve_20_True_4epochs_1e-05')
 reweight = True
 topic_only = False
 RESERVE = True
-emb_map = load_emb('../data/topic_emb/sentence-t5-xl_topic_embs.pickle')
+topic_emb_map = load_emb('../data/sentence-t5-xl_topic_embs.pickle')
 word2defs, def2guideword, word_sense2chdef_level, orig_new = load_data()
+tokenizer_map = load_tokenizer_map()
 
 class WSDRequest(BaseModel):
     sentence: dict
+
+def gen_guide_def(word):
+    definitions = set(word2defs[word][:])
+    guide_def = {}
+    for sense in definitions:
+        data = def2guideword.get((word, sense), '')
+        if data['guideword']:
+            guideword = data['guideword']
+            sense_add_guideword = guideword[1:-1] + ' ' + sense
+            guide_def[sense_add_guideword] = guideword
+        else:
+            guide_def[sense] = ''
+    return guide_def
 
 def gen_mask_sent(sent_list, targetword, reserve=True):
 
@@ -100,6 +119,19 @@ def gen_store_data(token_scores, sorted_senses, lemma_word):
                     'guideword': guideword})
     return topics_data, output
 
+def gen_token_scores(mlm_results):
+    token_score = {}
+    for idx, r in enumerate(mlm_results):
+        if r['token_str'].startswith('['):
+            try:
+                origin_topic = tokenizer_map[str(r['token'])]
+                topic = ' '.join(origin_topic.split(' ')[1:])[:-1].lower()
+                token_score[topic] = r['score']
+            except:
+                print(r['token'])
+                continue
+    return token_score
+
 @app.post("/api/wsd")
 def wsd_sentence(item: WSDRequest):
     
@@ -118,7 +150,7 @@ def wsd_sentence(item: WSDRequest):
             definitions = list(set(word2defs[targetword][:]))
             if len(definitions) > 1:
                 def_sent_score = calculate_def_sent_score(sent, definitions, SBERT)
-                sorted_senses = cal_weighted_score(token_scores, emb_map, definitions, SBERT,
+                sorted_senses = cal_weighted_score(token_scores, topic_emb_map, definitions, SBERT,
                                                     reweight, topic_only, def_sent_score)
             else:
                 sorted_senses = [[definitions[0], 1]]

@@ -22,8 +22,8 @@ def load_data(version):
     with open('../data/words2defs.json') as f:
         word2def = json.loads(f.read())
     
-    with open('../data/sentence-t5-xl_def_emb.pickle', 'rb') as f:
-        def_emb_dict = pickle.load(f)
+    with open('../data/sentence-t5-xl_sense_examples_embs.pickle', 'rb') as f:
+        def_examples_embs = pickle.load(f)
 
     sents_filename = f'../data/wiki/{version}_wiki_href_word2sents.json'
     with open(sents_filename) as f:
@@ -45,7 +45,7 @@ def load_data(version):
             def2id[data['en_def']].append({'headword': data['headword'],
                                            'id': data['id']})
     
-    return word2def, def2id, def_emb_dict, href2word_sents, href2def
+    return word2def, def2id, def_examples_embs, href2word_sents, href2def
 
 def build_map(data):
     href_word2sents = defaultdict(list)
@@ -55,9 +55,9 @@ def build_map(data):
             href_word2sents[(href, word)].append(sent)
     return href_word2sents
 
-def cal_similarity(first_sent, word, sense, def_emb_dict, sents):  
+def cal_similarity(first_sent, word, sense, def_examples_embs, sents):  
     # contains definition and examples sentences embeddings
-    def_embs = def_emb_dict[sense]
+    def_embs = def_examples_embs[(word, 'noun')][sense]['sense_emb']
     embeddings = model.encode([first_sent], convert_to_tensor=True)
 
     cosine_scores = util.cos_sim(embeddings, def_embs)
@@ -66,12 +66,12 @@ def cal_similarity(first_sent, word, sense, def_emb_dict, sents):
     final_score = sense2sense
     return final_score
 
-def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict, sents): 
+def find_proper_sense(first_sent, word, word2def, def2id, def_examples_embs, sents): 
     # all senses of this word
     definitions = word2def[word]
     if len(definitions) == 1:
         sense = definitions[0]
-        similarity = cal_similarity(first_sent, word, sense, def_emb_dict, sents)
+        similarity = cal_similarity(first_sent, word, sense, def_examples_embs, sents)
         word_id = def2id[sense][0]['id']
         return word_id, similarity
     else:
@@ -80,7 +80,7 @@ def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict, sents):
         proper_sense = ''
 
         for sense in definitions:
-            similarity = cal_similarity(first_sent, word, sense, def_emb_dict, sents)
+            similarity = cal_similarity(first_sent, word, sense, def_examples_embs, sents)
             if similarity > max_similarity:
                 max_similarity = similarity
                 proper_sense = sense
@@ -89,13 +89,14 @@ def find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict, sents):
                         word_id = data['id']
         return word_id, max_similarity
 
-def process_sent(href2def, href_word2sents, word2def, def2id, def_emb_dict):
+def process_sent(href2def, href_word2sents, word2def, def2id, def_examples_embs):
     href_word2id = {}
     # ('bass (fish)', 'bass')
     for href_word, sents in tqdm(href_word2sents.items()):
         href, word = href_word
         first_sent = href2def[href]
-        word_id, score = find_proper_sense(first_sent, word, word2def, def2id, def_emb_dict, sents)
+        word_id, score = find_proper_sense(first_sent, word, word2def, 
+                                            def2id, def_examples_embs, sents)
         if word_id and score:
             href_word2id[(href, word)] = (word_id, float(score))
     return href_word2id
@@ -130,10 +131,10 @@ def main():
     save_filename = f'../data/wiki/all_{version}_wiki_word_id2sents_highest.json'
     print("save file:", save_filename)
 
-    word2def, def2id, def_emb_dict, href2word_sents, href2def = load_data(version)
+    word2def, def2id, def_examples_embs, href2word_sents, href2def = load_data(version)
     href_word2sents = build_map(href2word_sents)
 
-    href_word2id = process_sent(href2def, href_word2sents, word2def, def2id, def_emb_dict)
+    href_word2id = process_sent(href2def, href_word2sents, word2def, def2id, def_examples_embs)
 
     word_id2sents = gen_store_data(href_word2sents, href_word2id)
 

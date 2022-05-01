@@ -1,0 +1,29 @@
+- Evaluation need data:
+
+    1. word2pos_defs.json: word to definition for all POS tag data -> fetch candidate senses
+
+    2. sentence-t5-xl_topic_embs.pickle -> precalculated topic embeddings for disambiguation usage
+
+    3. sentence-t5-xl_sense_examples_embs.pickle -> precalculated sense embeddings for disambiguation usage
+    
+    4. evaluation data -> 100 ~ 300 sentences and answers for evaluation usage
+
+- WSD api need data:
+
+    1. word2pos_defs.json: word to definition for all POS tag data -> fetch candidate senses
+
+    2. sentence-t5-xl_topic_embs.pickle -> precalculated topic embeddings for disambiguation usage
+
+    3. sentence-t5-xl_sense_examples_embs.pickle -> precalculated sense embeddings for disambiguation usage
+
+    4. word_sense2chdef_level -> display Chinese definition and word level
+        
+    5. orig_new -> map category to supergroup, display usage
+
+- The same data:
+
+    1. word2pos_defs.json: word to definition for all POS tag data -> fetch candidate senses
+
+    2. sentence-t5-xl_topic_embs.pickle -> precalculated topic embeddings for disambiguation usage
+
+    3. sentence-t5-xl_sense_examples_embs.pickle -> precalculated sense embeddings for disambiguation usage 

@@ -1,11 +1,11 @@
 import json
-from collections import defaultdict, Counter
 from tqdm import tqdm
 from transformers import pipeline
+from collections import defaultdict, Counter
 
-tokenizer_name = "./tokenizer_casedFalse"
+tokenizer_name = "../tokenizer_casedFalse"
 nlp = pipeline('fill-mask',
-       model='./model/hybrid/wiki_reserve_20_True_4epochs_1e-05',
+       model='../model/hybrid/wiki_reserve_20_True_4epochs_1e-05',
        tokenizer=tokenizer_name)
 
 token_sents = defaultdict(list)
@@ -35,8 +35,8 @@ def find_topic(sent):
         return ''
                 
 def main():
-    find_token('./data/training_data/cross_ref_reserveTrue_cambridge.tsv')
-    find_token('./data/training_data/reserve/reremap_20_simple_True.tsv')
+    find_token('../data/training_data/0.0_True_noun_cambridge.tsv')
+    find_token('../data/training_data/reserve/reremap_20_simple_True.tsv')
     
     num_topic = defaultdict(list)
 

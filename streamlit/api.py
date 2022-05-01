@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from utils import *
 
 app = FastAPI()
-model_name = 'wiki_reserve_20_True_4epochs_1e-05'
+model_name = 'wiki_reserve_new_20_True_4epochs_1e-05'
 MLM = load_model('hybrid', model_name)
 RESERVE = is_reserve(model_name)
 

@@ -92,7 +92,7 @@ python build_wikipedia_data_map.py -v simple
 ### 3-2-1 Pre-calculate the embeddings of definition and examples
 #### Command
 ```
-python cal_def_emb.py
+python cal_sense_examples_emb.py
 ```
 #### Input
 ```
@@ -100,7 +100,7 @@ python cal_def_emb.py
 ```
 #### Output
 ```
-./data/sentence-t5-xl_def_emb.pickle
+./data/sentence-t5-xl_sense_examples_embs.pickle
 ```
 #### 3-2-2 Map Wikipedia link page to Cambridge sense
 #### Command
@@ -110,7 +110,7 @@ python wiki_link_sent2cam.py -v simple
 #### Input
 ```
 ./data/words2defs.json
-./data/sentence-t5-xl_def_emb.pickle
+./data/sentence-t5-xl_sense_examples_embs.pickle
 ./data/wiki/simple_wiki_href2def.json
 ./data/wiki/simple_wiki_href_word2sents.json
 ./data/cambridge.sense.000.jsonl

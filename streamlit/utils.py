@@ -41,18 +41,17 @@ def load_cambridge():
 
 def load_map():
     with open('../data/orig_new.json') as f:
-        data = json.loads(f.read())
+        orig_new = json.loads(f.read())
+    
+    with open('../data/sentence-t5-xl_topic_embs.pickle', 'rb') as f:
+        topic_emb_map = pickle.load(f)
         
-    filename = '../data/topic_emb/sentence-t5-xl_topic_embs.pickle'
-    with open(filename, 'rb') as f:
-        emb_map = pickle.load(f)
-        
-    with open('../data/definition_emb.pickle', 'rb') as f:
-        def_emb_map = pickle.load(f)
-    return data, emb_map, filename, def_emb_map
+    # with open('../data/definition_emb.pickle', 'rb') as f:
+    #     def_emb_map = pickle.load(f)
+    return orig_new, topic_emb_map
 
 
-orig_new_map, emb_map, filename, def_emb_map = load_map()
+orig_new_map, topic_emb_map = load_map()
 word2defs, def2data = load_cambridge()
 
 def check_is_noun(word):
