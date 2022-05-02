@@ -29,17 +29,17 @@ import numpy as np
 import torch.nn as nn
 from transformers import pipeline
 from collections import defaultdict
-from util import gen_masked_sent
+from .util import gen_masked_sent
 from sentence_transformers import util
-
 
 softmax = nn.Softmax(dim=0)
 
 class Disambiguator:
 
-    def __init__(self, data_class, trained_model_name,
+    def __init__(self, data_class, trained_model_name, tokenizer_name,
                 reserve, sentence_only, reweight, topic_only):
         self.trained_model_name = trained_model_name
+        self.tokenizer_name = tokenizer_name
         self.reserve = reserve
         self.sentence_only = sentence_only
         self.reweight = reweight
@@ -52,10 +52,9 @@ class Disambiguator:
         self.MLM = self.load_trained_model()
 
     def load_trained_model(self):
-        model_path = f"./model/{self.trained_model_name}"
-
-        tokenizer = "./tokenizer_casedFalse"
-        MLM = pipeline('fill-mask', model=model_path, tokenizer=tokenizer)
+        MLM = pipeline('fill-mask', 
+                        model=self.trained_model_name, 
+                        tokenizer=self.tokenizer_name)
         return MLM
 
     def reweight_prob(self, prob):

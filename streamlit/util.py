@@ -32,18 +32,18 @@ def is_reserve(model_name):
     return 'True' in model_name
 
 def load_cambridge():
-    with open('../data/words2defs.json') as f:
+    with open('../TopSense/data/words2defs.json') as f:
         word2defs = json.loads(f.read())
         
-    with open('../data/def2data.pickle', 'rb') as f:
+    with open('../TopSense/data/def2data.pickle', 'rb') as f:
         def2data = pickle.load(f) 
     return word2defs, def2data
 
 def load_map():
-    with open('../data/orig_new.json') as f:
+    with open('../TopSense/data/orig_new.json') as f:
         orig_new = json.loads(f.read())
     
-    with open('../data/sentence-t5-xl_topic_embs.pickle', 'rb') as f:
+    with open('../TopSense/data/sentence-t5-xl_topic_embs.pickle', 'rb') as f:
         topic_emb_map = pickle.load(f)
         
     # with open('../data/definition_emb.pickle', 'rb') as f:
@@ -51,8 +51,8 @@ def load_map():
     return orig_new, topic_emb_map
 
 
-orig_new_map, topic_emb_map = load_map()
-word2defs, def2data = load_cambridge()
+# orig_new_map, topic_emb_map = load_map()
+# word2defs, def2data = load_cambridge()
 
 def check_is_noun(word):
     if word in word2defs:
@@ -63,7 +63,7 @@ def check_is_noun(word):
 def load_model(directory='brt', model_name='remap_10epochs'):
     mlm = pipeline('fill-mask',
                   model=f"../model/{directory}/{model_name}",
-                  tokenizer="../tokenizer_casedFalse")
+                  tokenizer="../TopSense/tokenizer_casedFalse")
     return mlm
 
 def load_spacy_sbert():
