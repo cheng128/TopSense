@@ -158,3 +158,4 @@ TopSense/tokenizer_casedFalse
 TopSense/model
 
 notebooks
+*.sh

@@ -5,9 +5,10 @@ from sentence_transformers import SentenceTransformer
 
 class Data:
     
-    def __init__(self, model_name, data_directory):
+    def __init__(self, model_name, data_directory, device='gpu'):
         self.model_name = model_name
         self.data_directory = data_directory
+        self.device = device
 
     def load_emb(self, filename):
 
@@ -21,10 +22,10 @@ class Data:
         with open(f'{self.data_directory}/word2pos_defs.json') as f:
             word2pos_defs = json.loads(f.read())
         
-        topic_emb_filename = f'{self.data_directory}/{self.model_name}_topic_embs.pickle'
+        topic_emb_filename = f'{self.data_directory}/embeddings/{self.model_name}_topic_embs_{self.device}.pickle'
         topic_embs = self.load_emb(topic_emb_filename)
         
-        sense_embs_filename = f'{self.data_directory}/{self.model_name}_sense_examples_embs.pickle'
+        sense_embs_filename = f'{self.data_directory}/embeddings/{self.model_name}_sense_embs_{self.device}.pickle'
         sense_examples_embs = self.load_emb(sense_embs_filename)
 
         return word2pos_defs, topic_embs, sense_examples_embs

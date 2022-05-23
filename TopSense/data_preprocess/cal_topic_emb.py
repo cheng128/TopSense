@@ -18,13 +18,14 @@ def main():
 
     sent_dict = defaultdict(list)
     for i in data:
-        sent_dict[i['category'].lower()].append(i['en_def'])
+        if i['pos'] == 'noun':
+            sent_dict[i['category'].lower()].append(i['en_def'])
 
     emb_dict = {}
     for defs, sents in tqdm(sent_dict.items()):
-        emb_dict[defs] = model.encode(sents, convert_to_tensor=True)
+        emb_dict[defs] = model.encode(sents, convert_to_tensor=True).cpu()
 
-    with open(f'../data/{model_name}_topic_embs.pickle', 'wb') as f:
+    with open(f'../data/{model_name}_topic_embs_noun_cpu().pickle', 'wb') as f:
         pickle.dump(emb_dict, f)
     
 if __name__ == '__main__':

@@ -24,21 +24,21 @@ def print_info(model, mfs_bool, topic_only, reweight, reserve,
     print('Sbert model:', sbert_name)
 
 def load_ans(filetype):
-    with open(f'./data/{filetype}_sentences_ans.json') as f:
+    with open(f'./TopSense/evaluation/data/{filetype}_sentences_ans.json') as f:
         sent2ans = json.loads(f.read())
     return sent2ans
 
 def load_mfs_data():
-    with open('./data/first_sense.json') as f:
+    with open('./TopSense/evaluation/data/first_sense.json') as f:
         mfs_data = json.loads(f.read())
     return mfs_data
 
 def gen_save_filename(sentence_only, mfs_bool, topic_only, reserve, trained_model_name, 
                       filetype, reweight, sbert_name):
-    directory = trained_model_name.split('/')[0]
+    directory = trained_model_name.split('/')[-2]
     model_name = trained_model_name.split('/')[-1]
     
-    prefix = f'./results/{directory}/'
+    prefix = f'./TopSense/evaluation/results/{directory}/'
     if sentence_only:
         save_file = f'{prefix}{filetype}_sentence_only_{sbert_name}.tsv'
     elif mfs_bool:
@@ -52,11 +52,11 @@ def gen_save_filename(sentence_only, mfs_bool, topic_only, reserve, trained_mode
 
 def load_data(filetype, mfs_bool):
     if filetype == 'mix':
-        filename = './data/mix_sample.json'
+        filename = './TopSense/evaluation/data/mix_sample.json'
     elif filetype == 'voa':
-        filename = './data/voa_sample.json'
+        filename = './TopSense/evaluation/data/voa_sample.json'
     else:
-        filename = f'./data/{filetype}_sentences.json'
+        filename = f'./TopSense/evaluation/data/{filetype}_sentences.json'
         
     print('load data: ', filename)
     with open(filename) as f:

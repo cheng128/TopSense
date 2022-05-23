@@ -34,16 +34,21 @@ def load_data():
 word_sense2chdef_level, orig_new = load_data()
 
 sbert_name = 'sentence-t5-xl'
-trained_model_name = '../TopSense/model/hybrid/wiki_reserve_new_20_True_4epochs_1e-05' 
+noun_trained_model_name = '../TopSense/model/hybrid/wiki_reserve_new_20_True_4epochs_1e-05' 
+# trained_model_name = '../TopSense/model/hybrid/verb_noun_wiki_all_True_15epochs_1e-05'
+verb_trained_model_name = '../TopSense/model/hybrid/bootstrap_verb_0.6_all_True_3epochs_1e-05'
 tokenizer_name = '../TopSense/tokenizer_casedFalse'
 reserve = True
 reweight = True
 topic_only = False
 sentence_only = False
 
-DATA = Data(sbert_name, '../TopSense/data')
-DISAMBIGUATOR = Disambiguator(DATA, trained_model_name, tokenizer_name,
+DATA = Data(sbert_name, '../TopSense/data', 'cpu')
+NOUN_DISAMBIGUATOR = Disambiguator(DATA, noun_trained_model_name, tokenizer_name,
                 reserve, sentence_only, reweight, topic_only)
+VERB_DISAMBIGUATOR = Disambiguator(DATA, verb_trained_model_name, tokenizer_name,
+                reserve, sentence_only, reweight, topic_only)
+
 
 class WSDRequest(BaseModel):
     sentence: dict
@@ -78,16 +83,23 @@ def wsd_sentence(item: WSDRequest):
     sentence = item.sentence
     tokens = sentence['tokens']
     input_sentence = ' '.join([token['text'] for token in tokens])
-    target_words = [(idx, token['lemma']) for idx, token in enumerate(tokens) 
-                    if token['pos'] in ['NOUN', 'PROPN']]
+    
+    target_words = [(idx, token['pos'], token['lemma']) 
+                    for idx, token in enumerate(tokens)
+                    if token['pos'] in ['NOUN', 'PROPN', 'VERB']]
 
 
-    for idx, targetword in target_words:
-
-        ranked_senses, masked_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(tokens,
-                                                                                input_sentence, 
-                                                                                tokens[idx]['pos'],
-                                                                                targetword)
+    for idx, pos, targetword in target_words:
+        if pos in ['NOUN', 'PROPN']:
+            ranked_senses, masked_sent, token_scores = NOUN_DISAMBIGUATOR.predict_and_disambiguate(tokens,
+                                                                                                input_sentence, 
+                                                                                                pos,
+                                                                                                targetword)
+        elif pos in ['VERB']: 
+            ranked_senses, masked_sent, token_scores = VERB_DISAMBIGUATOR.predict_and_disambiguate(tokens,
+                                                                                                input_sentence, 
+                                                                                                pos,
+                                                                                                targetword)
         if token_scores and ranked_senses:
             topics_data, senses_data = gen_store_data(token_scores, ranked_senses, targetword)
             data = {'topics': topics_data, 'senses': senses_data}

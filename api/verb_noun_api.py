@@ -11,7 +11,7 @@ from TopSense.util import tokenize_processor
 app = FastAPI()
 
 sbert_name = 'sentence-t5-xl'
-trained_model_name = '../TopSense/model/hybrid/wiki_reserve_new_20_True_4epochs_1e-05' 
+trained_model_name = '../TopSense/model/hybrid/verb_noun_wiki_all_True_15epochs_1e-05'
 tokenizer_name = '../TopSense/tokenizer_casedFalse'
 reserve = True
 reweight = True
@@ -41,10 +41,12 @@ def find_target_word(sentence):
 
 def find_lemma_targetword(tokens, targetword):
     lemma_word = ''
+    pos = ''
     for i in tokens:
         if i['text'] == targetword:
             lemma_word = i['lemma']
-    return lemma_word
+            pos = i['pos']
+    return lemma_word, pos
 
 def gen_store_data(ranked_senses, lemma_targetword):
     store_data = []
@@ -62,15 +64,18 @@ def return_sense(sentence: str, response_class: JSONResponse):
         return {'message': 'targetword not found.'}
     input_sentence = sentence.replace('[' + targetword + ']', targetword)
     tokens = tokenize_processor(input_sentence)
-    targetword = find_lemma_targetword(tokens, targetword)
-    ranked_senses, masked_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(tokens,
-                                                                                      input_sentence, 
-                                                                                      'noun',
-                                                                                      targetword)
-    message = ''
-    if ranked_senses and token_scores:
-        topics = list(token_scores.keys())
-        senses = gen_store_data(ranked_senses, targetword)
-        message = {'topics': topics,
-                'senses': senses}
+    targetword, pos = find_lemma_targetword(tokens, targetword)
+    if pos in ['NOUN', 'PRON', 'PROPN', 'VERB']:
+        ranked_senses, masked_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(tokens,
+                                                                                          input_sentence, 
+                                                                                          pos,
+                                                                                          targetword)
+        message = 'no ranked senses'
+        if ranked_senses and token_scores:
+            topics = list(token_scores.keys())
+            senses = gen_store_data(ranked_senses, targetword)
+            message = {'topics': topics,
+                    'senses': senses}
+    else:
+        message = 'POS tag must be NOUN, PROPN, PRON, VERB'
     return {'message': message}

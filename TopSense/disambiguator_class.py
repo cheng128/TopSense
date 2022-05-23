@@ -22,7 +22,6 @@ Input and Output for the Main Disambiguation Function:
 - Output
 
 Please see data_description.txt for more details
-
 """
 import torch
 import numpy as np
@@ -35,9 +34,10 @@ from sentence_transformers import util
 softmax = nn.Softmax(dim=0)
 
 class Disambiguator:
-
+    
     def __init__(self, data_class, trained_model_name, tokenizer_name,
                 reserve, sentence_only, reweight, topic_only):
+        self.data_class = data_class
         self.trained_model_name = trained_model_name
         self.tokenizer_name = tokenizer_name
         self.reserve = reserve
@@ -52,7 +52,7 @@ class Disambiguator:
         self.MLM = self.load_trained_model()
 
     def load_trained_model(self):
-        MLM = pipeline('fill-mask', 
+        MLM = pipeline('fill-mask',
                         model=self.trained_model_name, 
                         tokenizer=self.tokenizer_name)
         return MLM
@@ -67,17 +67,23 @@ class Disambiguator:
         rescale_score = 1 - np.arccos(min(float(score), 1)) / np.pi
         return rescale_score
 
-    def calculate_def_sent_score(self, input_sentence, definitions):
+    def calculate_def_sent_score(self, targetword, pos_tag, input_sentence):
         # TODO: sense examples embs
-        sentence_defs = [input_sentence]
-        sentence_defs.extend(definitions)
-        embs = self.SBERT.encode(sentence_defs, convert_to_tensor=True)
+        # sentence_defs = [input_sentence]
+        # sentence_defs.extend(definitions)
+        # embs = self.SBERT.encode(sentence_defs, convert_to_tensor=True)
+        sent_emb = self.SBERT.encode(input_sentence, convert_to_tensor=True)
+        if self.data_class.device == 'cpu':
+            sent_emb = sent_emb.cpu()
+        definition_embs = self.sense_examples_embs[(targetword, pos_tag)]['embs']
+        definitions = self.sense_examples_embs[(targetword, pos_tag)]['senses']
 
-        cos_scores = util.pytorch_cos_sim(embs, embs)
-
+        # cos_scores = util.pytorch_cos_sim(embs, embs)
+        cos_scores = util.pytorch_cos_sim(sent_emb, definition_embs)
+        assert(len(cos_scores[0]) == len(definitions))
         def_sent_score = {}
-        for j in range(1, len(cos_scores)):
-            def_sent_score[sentence_defs[j]] = self.rescal_cos_score(cos_scores[0][j])
+        for j in range(0, len(cos_scores[0])):
+            def_sent_score[definitions[j]] = self.rescal_cos_score(cos_scores[0][j])
         return def_sent_score
     
     def cal_weighted_score(self, confidence, topic_emb, sense_emb, def_sent_score, sense):
@@ -94,28 +100,28 @@ class Disambiguator:
         return sense_score
 
     def disambiguate(self, targetword, pos_tag, input_sentence, token_scores):
-        pos_tag = 'noun' if pos_tag.lower() == 'propn' else pos_tag.lower()
+        pos_tag = 'noun' if pos_tag.lower() in ['propn', 'pron'] else pos_tag.lower()
         definitions = self.word2pos_defs[targetword].get(pos_tag, '')
             
         if len(definitions) == 1:
             return [[definitions[0], 1]]
-            
-        def_sent_score = self.calculate_def_sent_score(input_sentence, definitions)
+        elif not definitions: 
+            return []
+        def_sent_score = self.calculate_def_sent_score(targetword, pos_tag, input_sentence)
 
         if self.sentence_only:
             sorted_score = sorted(def_sent_score.items(), key=lambda x: x[1], reverse=True)
             return sorted_score
-
         weight_scores = defaultdict(lambda: 0)
         for topic, confidence in token_scores.items():
             topic_emb = self.topic_embs_map.get(topic, None)
             if topic_emb != None:
                 for sense in definitions:
-                    sense_emb = self.SBERT.encode(sense, convert_to_tensor=True)
+                    index = self.sense_examples_embs[(targetword, pos_tag)]['senses'].index(sense)
+                    sense_emb = self.sense_examples_embs[(targetword, pos_tag)]['embs'][index]
                     sense_score = self.cal_weighted_score(confidence, topic_emb, sense_emb, 
                                                             def_sent_score, sense)
                     weight_scores[sense] += sense_score 
-                    
         for key, value in weight_scores.items():
             weight_scores[key] = value / len(token_scores)
             
@@ -134,13 +140,13 @@ class Disambiguator:
         if targetword in self.word2pos_defs:
             masked_sent, _ = gen_masked_sent(sent_tokens, pos_tag, targetword, self.reserve)
             if not masked_sent:
-                print(sent_tokens, input_sentence, pos_tag, targetword)
+                return '', '', ''
             predicted_results = self.MLM(masked_sent)
             token_scores = self.gen_token_scores(predicted_results)
             ranked_senses = self.disambiguate(targetword, pos_tag, input_sentence, token_scores)
-            return ranked_senses, masked_sent, token_scores
-        else:
-            return '', '', ''
+            if ranked_senses:
+                return ranked_senses, masked_sent, token_scores
+        return '', '', ''
 
         
 

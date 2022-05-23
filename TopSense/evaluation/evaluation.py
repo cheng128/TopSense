@@ -1,10 +1,10 @@
 import argparse
 from tqdm import tqdm
-from utils import *
+from .utils import *
 import sys
-sys.path.append("..")
-from disambiguator_class import Disambiguator 
-from data_class import Data
+from ..disambiguator_class import Disambiguator 
+from ..data_class import Data
+from ..util import tokenize_processor
 
 def main():
     parser = argparse.ArgumentParser()
@@ -22,9 +22,10 @@ def main():
 
     filetype, trained_model_name, mfs_bool, topic_only,\
     reweight, reserve, sentence_only, sbert_name = parse_argument(args)
+    tokenizer_name = './TopSense/tokenizer_casedFalse'
 
-    DATA = Data(sbert_name, '../data')
-    DISAMBIGUATOR = Disambiguator(DATA, trained_model_name,
+    DATA = Data(sbert_name, './TopSense/data')
+    DISAMBIGUATOR = Disambiguator(DATA, trained_model_name, tokenizer_name,
                                   reserve, sentence_only, reweight, topic_only)
     
     print_info(trained_model_name, mfs_bool, topic_only, reweight, 
@@ -33,7 +34,10 @@ def main():
     evaluation_data, sent2ans, first_sense = load_data(filetype, mfs_bool)
     save_filename = gen_save_filename(sentence_only, mfs_bool, topic_only, reserve,
                                     trained_model_name, filetype, reweight, sbert_name)
-                                    
+
+    with open(save_filename, 'w') as f:
+        pass
+
     if mfs_bool:
         process_mfs_sense(first_sense, targetword, ans, top_one, mfs_bool, 
                          sentence_only, sent, targetword, save_filename) 
@@ -50,20 +54,26 @@ def main():
                 top_one = process_mfs_sense(first_sense, targetword, ans, top_one, mfs_bool, 
                                             sentence_only, sent, targetword, save_filename)
             else:
-                results, input_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(sentence[0], 
-                                                                                           'noun', targetword)
+                tokens = tokenize_processor(sentence[0])
+                results, masked_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(tokens,
+                                                                                            sentence[0], 
+                                                                                            'noun', 
+                                                                                            targetword)
                 if not results:
-                    results, input_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(sentence[0],
-                                                                                               'propn', targetword)
-                senses = [line[0].replace('\n', '').strip() for line in results]
+                    results, masked_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(tokens,
+                                                                                                sentence[0],
+                                                                                                'propn', 
+                                                                                                targetword)
                 
+                senses = [line[0].replace('\n', '').strip() for line in results]
+
                 if ans.endswith(senses[0]):
                     top_one += 1
                 for idx, sense in enumerate(senses):
                     if ans.endswith(sense):
                         rank_score += 1 / (idx + 1)
                 topics = list(token_scores.keys())
-                write_data(mfs_bool, sentence_only, input_sent, targetword,
+                write_data(mfs_bool, sentence_only, masked_sent, targetword,
                        ans, senses, topics, save_filename)
             total_count += 1
 

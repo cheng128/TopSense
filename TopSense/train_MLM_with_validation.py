@@ -125,7 +125,7 @@ def train_MLM(filename, lr, epochs, dir_path, pretrain, args):
         temp_dir_path = dir_path.replace(f'{epochs}epochs', f'{epoch+1}epochs')
         MLM.save_pretrained(temp_dir_path)
         with open(f'{temp_dir_path}/spec.txt', 'w') as f:
-            f.write(f'python train_MLM.py -e {epochs} -g {args.g} -f {filename} -n {args.n} -r {args.r} -m {args.m} -lr {args.lr}\n')
+            f.write(f'python train_MLM_with_validation.py -e {epochs} -g {args.g} -f {filename} -n {args.n} -r {args.r} -m {args.m} -lr {args.lr}\n')
             f.write(f'tokenizer: tokenizer_casedFalse \n')
             f.write(f'pretrained model: {args.pre}\n')
             for loss, validate in zip(train_loss_record, test_loss_record):

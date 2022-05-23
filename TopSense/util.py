@@ -3,7 +3,6 @@ import spacy
 spacy_model = spacy.load("en_core_web_sm")
 
 def tokenize_processor(sentence):
-
     doc = spacy_model(sentence)
     tokens = []
     for token in doc:
@@ -26,23 +25,22 @@ def update_list(reserve, reconstruct, topic_construct, token, topic):
 
 def gen_masked_sent(sent_list, pos_tag, targetword, reserve, topic=''):
     
-    pos_tag = 'NOUN' if pos_tag in ['PROPN', 'PRON'] else pos_tag
+    pos_tag = 'noun' if pos_tag.lower() in ['propn', 'pron'] else pos_tag.lower()
     reconstruct = []
     topic_construct = []
     find = False
 
     for token in sent_list:
-        candidates = [token['text'].lower(), token['lemma'].lower()]
         # not found and the POS tag is match, we need to check this token
-        token_pos = 'NOUN' if token['pos'] in ['PROPN', 'PRON'] else token['pos']
-        if not find and pos_tag.upper() == token_pos:
-            if targetword.lower() in candidates:
+        token_pos = 'noun' if token['pos'] in ['PROPN', 'PRON'] else token['pos'].lower()
+        if not find and pos_tag == token_pos.lower():
+            if targetword.lower() == token['lemma'].lower():
                 reconstruct, topic_construct = update_list(reserve, reconstruct, topic_construct,
                                                 token, topic)
                 find = True
                 continue
         # when we are dealing with training data
-        elif not find and targetword.lower() in candidates:
+        elif not find and targetword.lower() == token['text'].lower():
             reconstruct, topic_construct = update_list(reserve, reconstruct, topic_construct,
                                                         token, topic) 
             find = True
