@@ -1,29 +1,49 @@
+Input and Output for disambiguator_class:
+- Input
+| - Initialize:
+| | - 1. word2pos_defs (i.e. word2pos_defs['bank']['noun'])
+| |      -> to fetch candidate senses based on the pos tag
+| | - 2. topic_embs, sense_examples_embs 
+| |      -> precalculated embedding of topics and sense(include examples)
+| | - 3. sbert_model 
+| |      -> to do run-time embedding
+| | - 4. trained_model_name 
+| |      -> to load fine-tuned model
+| | - 5. tokenizer_name 
+| |      -> to load tokenizer
+| | - 6. reserve, sentence_only, reweight, topic_only
+|        -> to generate masked sentence and calculate weighted score
+| - Run-time: (entry method: predict_and_disambiguate)
+| | - 1. sent_tokens
+| |      -> tokens in sentence (tokenize by Spacy), used to generate 
+| |         masked sentence
+| | - 2. input_sentence
+| |      -> to calculate similarity score between definition and input sentence
+| | - 3. pos_tag
+| |      -> to generate masked sentence and fetch candidate senses
+|-| - 4. targetword
+|        -> use to generate masked sentence and fetch candidate senses
+- Output
+| | - 1. ranked_senses
+| |      -> candidate sense ranked with scores
+| | - 2. masked_sent
+| |      -> masked sentence (for evaluation result)
+|-| - 3. token_scores
+         -> predict topics and scores
+
+============================================================================================================
+
 - Evaluation need data:
-
-    1. word2pos_defs.json: word to definition for all POS tag data -> fetch candidate senses
-
-    2. sentence-t5-xl_topic_embs.pickle -> precalculated topic embeddings for disambiguation usage
-
-    3. sentence-t5-xl_sense_examples_embs.pickle -> precalculated sense embeddings for disambiguation usage
     
-    4. evaluation data -> 100 ~ 300 sentences and answers for evaluation usage
+    1. evaluation data -> 100 ~ 300 sentences and answers for evaluation usage, verb evalutaion
 
 - WSD api need data:
 
-    1. word2pos_defs.json: word to definition for all POS tag data -> fetch candidate senses
+    1. word_sense2chdef_level -> display Chinese definition and word level
+    2. orig_new -> map category to supergroup, display usage
 
-    2. sentence-t5-xl_topic_embs.pickle -> precalculated topic embeddings for disambiguation usage
-
-    3. sentence-t5-xl_sense_examples_embs.pickle -> precalculated sense embeddings for disambiguation usage
-
-    4. word_sense2chdef_level -> display Chinese definition and word level
-        
-    5. orig_new -> map category to supergroup, display usage
-
-- The same data:
+- The base data that both evaluation and WSD api need:
 
     1. word2pos_defs.json: word to definition for all POS tag data -> fetch candidate senses
-
-    2. sentence-t5-xl_topic_embs.pickle -> precalculated topic embeddings for disambiguation usage
-
-    3. sentence-t5-xl_sense_examples_embs.pickle -> precalculated sense embeddings for disambiguation usage 
+    2. sentence-t5-xl_topic_embs.pickle -> precalculated topic embeddings for disambiguation usage (gpu and cpu version)
+    3. sentence-t5-xl_sense_examples_embs.pickle -> precalculated sense embeddings for disambiguation usage (gpu and cpu version)

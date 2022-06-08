@@ -78,6 +78,15 @@ def gen_train_test_data(masked_sent, topic_sent, tokenizer):
     test_dataloader = gen_data_loader(test_masked, test_topic, tokenizer)
     return train_dataloader, test_dataloader
 
+def write_spec(temp_dir_path, epochs, args, filename, train_loss_record, test_loss_record):
+    with open(f'{temp_dir_path}/spec.txt', 'w') as f:
+        f.write(f'python train_MLM_with_validation.py -e {epochs} -g {args.g}
+                    -f {filename} -n {args.n} -r {args.r} -m {args.m} -lr {args.lr}\n')
+        f.write(f'tokenizer: tokenizer_casedFalse \n')
+        f.write(f'pretrained model: {args.pre}\n')
+        for loss, validate in zip(train_loss_record, test_loss_record):
+            f.write('\t'.join(loss) + '\t' + validate + '\n') 
+
 def train_MLM(filename, lr, epochs, dir_path, pretrain, args):
 
     MLM, tokenizer = load_model_tokenizer(pretrain)
@@ -124,12 +133,8 @@ def train_MLM(filename, lr, epochs, dir_path, pretrain, args):
         
         temp_dir_path = dir_path.replace(f'{epochs}epochs', f'{epoch+1}epochs')
         MLM.save_pretrained(temp_dir_path)
-        with open(f'{temp_dir_path}/spec.txt', 'w') as f:
-            f.write(f'python train_MLM_with_validation.py -e {epochs} -g {args.g} -f {filename} -n {args.n} -r {args.r} -m {args.m} -lr {args.lr}\n')
-            f.write(f'tokenizer: tokenizer_casedFalse \n')
-            f.write(f'pretrained model: {args.pre}\n')
-            for loss, validate in zip(train_loss_record, test_loss_record):
-                f.write('\t'.join(loss) + '\t' + validate + '\n') 
+        
+        write_spec(temp_dir_path, epochs, args, filename, train_loss_record, test_loss_record)
 
 def main():
     parser = argparse.ArgumentParser()

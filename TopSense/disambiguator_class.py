@@ -2,25 +2,11 @@
 Disambiguation Steps:
 1. Use model to predict topics
 2. Generate topic token score -> dict
-3. Calculate cosine similarity between 
-    input sentence and candidate senses
-4. Calculate cosine similarity between topic
-    and candidate senses
+3. Calculate cosine similarity between input sentence and candidate senses
+4. Calculate cosine similarity between topic and candidate senses
 5. return sorted senses
 
 Input and Output for the Main Disambiguation Function:
-- Input
-1. sbert_data -> load SBERT model
-2. trained_model_name -> load fine-tuned model
-3. input sentence -> generate masked sentence and calculate
-   similarity between input sentence and sense
-3. targetword -> fetch candidate senses and generate masked sentence
-4. pos_tag -> fetch candidate senses and generated masked sentence
-5. reserve -> generated masked sentence
-6. sentence_only, reweight, topic_only -> for disambiguation calculation
-
-- Output
-
 Please see data_description.txt for more details
 """
 import torch
@@ -35,9 +21,9 @@ softmax = nn.Softmax(dim=0)
 
 class Disambiguator:
     
-    def __init__(self, data_class, trained_model_name, tokenizer_name,
-                reserve, sentence_only, reweight, topic_only):
-        self.data_class = data_class
+    def __init__(self, word2pos_defs, topic_embs, sense_examples_embs,
+                 sbert_model, trained_model_name, tokenizer_name,
+                 reserve, sentence_only, reweight, topic_only):
         self.trained_model_name = trained_model_name
         self.tokenizer_name = tokenizer_name
         self.reserve = reserve
@@ -45,9 +31,10 @@ class Disambiguator:
         self.reweight = reweight
         self.topic_only = topic_only
 
-        self.word2pos_defs, self.topic_embs_map, self.sense_examples_embs = data_class.load_data()
-        self.SBERT = data_class.load_sbert_model()
-        self.SPACY = data_class.load_spacy_model()
+        self.word2pos_defs = word2pos_defs
+        self.topic_embs_map = topic_embs
+        self.sense_examples_embs = sense_examples_embs
+        self.SBERT = sbert_model
 
         self.MLM = self.load_trained_model()
 
@@ -68,13 +55,7 @@ class Disambiguator:
         return rescale_score
 
     def calculate_def_sent_score(self, targetword, pos_tag, input_sentence):
-        # TODO: sense examples embs
-        # sentence_defs = [input_sentence]
-        # sentence_defs.extend(definitions)
-        # embs = self.SBERT.encode(sentence_defs, convert_to_tensor=True)
         sent_emb = self.SBERT.encode(input_sentence, convert_to_tensor=True)
-        if self.data_class.device == 'cpu':
-            sent_emb = sent_emb.cpu()
         definition_embs = self.sense_examples_embs[(targetword, pos_tag)]['embs']
         definitions = self.sense_examples_embs[(targetword, pos_tag)]['senses']
 
@@ -102,7 +83,8 @@ class Disambiguator:
     def disambiguate(self, targetword, pos_tag, input_sentence, token_scores):
         pos_tag = 'noun' if pos_tag.lower() in ['propn', 'pron'] else pos_tag.lower()
         definitions = self.word2pos_defs[targetword].get(pos_tag, '')
-            
+        
+        # only one sense, we don't need to disambiguate
         if len(definitions) == 1:
             return [[definitions[0], 1]]
         elif not definitions: 
@@ -147,6 +129,3 @@ class Disambiguator:
             if ranked_senses:
                 return ranked_senses, masked_sent, token_scores
         return '', '', ''
-
-        
-

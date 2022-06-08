@@ -35,13 +35,13 @@ def build_data(cambridge):
 
 def find_monosemous_word(word2data):
     
-    monosemous = {}
+    monosemous = defaultdict(dict)
     
     for headword, pos_data in word2data.items():
         for pos, definitions in pos_data.items():
             if len(definitions) == 1:
-                monosemous[headword] = {'pos': pos,
-                                        'examples': []}
+                monosemous[headword][pos] = {'id':'',
+                                            'examples':[]}
                 
     return monosemous
 
@@ -55,27 +55,27 @@ def convert_pos(token_pos):
 
 def clear_data(monosemous_data, word2data):
     delete_list = []
-    for key, value in monosemous_data.items():
-        if not value['examples']:
-            delete_list.append(key)
-            continue
-        pos = value['pos']
-        data = word2data[key][pos]
-        word_id = data[0]['id']
-        monosemous_data[key]['id'] = word_id
-    
-    for key in delete_list:
-        if not monosemous_data[key]['examples']:
+    for key, data in monosemous_data.items():
+        for pos, pos_data in data.items():
+            if not pos_data['examples']:
+                delete_list.append([key, pos])
+                continue
+
+    for key, pos in delete_list:
+        if len(monosemous_data[key]) == 1:
             del monosemous_data[key]
+        else:
+            del monosemous_data[key][pos]
             
     return monosemous_data
 
-def save_data(word2data, monosemous):
-    with open('../data/cambridge_word2data.json', 'w') as f:
-        f.write(json.dumps(word2data))
+def save_data(monosemous, monosemous_filename, word2data, word2data_filename):
     
-    with open('../data/monosemous_data.json', 'w') as f:
+    with open(monosemous_filename, 'w') as f:
         f.write(json.dumps(monosemous))
+    
+    with open(word2data_filename, 'w') as f:
+        f.write(json.dumps(word2data))
 
 def main():
     
@@ -88,11 +88,15 @@ def main():
         for token in sent_tokens:
             headword = token['lemma']
             token_pos = convert_pos(token['pos'])
-            if headword in monosemous and monosemous[headword]['pos'] == token_pos:
-                monosemous[headword]['examples'].append(example)
+            if headword in monosemous and token_pos in monosemous[headword]:
+                monosemous[headword][token_pos]['examples'].append(example)
+                data = word2data[headword][token_pos]
+                assert(len(data) == 1)
+                word_id = data[0]['id']
+                monosemous[headword][token_pos]['id'] = word_id
 
     clear_data(monosemous, word2data)
-    save_data(word2data, monosemous)
+    save_data(monosemous, '../data/monosemous_data.json', word2data, '../data/cambridge_word2data.json')
     
     return
 

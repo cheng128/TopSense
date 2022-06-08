@@ -36,7 +36,7 @@ word_sense2chdef_level, orig_new = load_data()
 sbert_name = 'sentence-t5-xl'
 noun_trained_model_name = '../TopSense/model/hybrid/wiki_reserve_new_20_True_4epochs_1e-05' 
 # trained_model_name = '../TopSense/model/hybrid/verb_noun_wiki_all_True_15epochs_1e-05'
-verb_trained_model_name = '../TopSense/model/hybrid/bootstrap_verb_0.6_all_True_3epochs_1e-05'
+verb_trained_model_name = '../TopSense/model/hybrid/monosemous_verb_all_True_6epochs_1e-05'
 tokenizer_name = '../TopSense/tokenizer_casedFalse'
 reserve = True
 reweight = True
@@ -44,11 +44,16 @@ topic_only = False
 sentence_only = False
 
 DATA = Data(sbert_name, '../TopSense/data', 'cpu')
-NOUN_DISAMBIGUATOR = Disambiguator(DATA, noun_trained_model_name, tokenizer_name,
-                reserve, sentence_only, reweight, topic_only)
-VERB_DISAMBIGUATOR = Disambiguator(DATA, verb_trained_model_name, tokenizer_name,
-                reserve, sentence_only, reweight, topic_only)
+word2pos_defs, topic_embs, sense_examples_embs = DATA.load_data()
+sbert_model = DATA.load_sbert_model()
 
+NOUN_DISAMBIGUATOR = Disambiguator(word2pos_defs, topic_embs, sense_examples_embs, 
+                                   sbert_model, noun_trained_model_name, tokenizer_name,
+                                   reserve, sentence_only, reweight, topic_only)
+
+VERB_DISAMBIGUATOR = Disambiguator(word2pos_defs, topic_embs, sense_examples_embs, 
+                                   sbert_model, verb_trained_model_name, tokenizer_name,
+                                   reserve, sentence_only, reweight, topic_only)
 
 class WSDRequest(BaseModel):
     sentence: dict
@@ -59,7 +64,7 @@ def gen_store_data(token_scores, ranked_senses, lemma_word):
 
     for topic, score in sorted_topics:
         topics_data.append({'text': topic.capitalize(), 
-                            'class': orig_new[topic],
+                            'class': orig_new.get(topic, ''),
                             'score': str(round(score, 2))[1:]})
 
     output = []

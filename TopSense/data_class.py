@@ -33,7 +33,3 @@ class Data:
     def load_sbert_model(self):
         sbert_model = SentenceTransformer(self.model_name)
         return sbert_model
-
-    def load_spacy_model(self):
-        spacy_model = spacy.load("en_core_web_sm")
-        return spacy_model

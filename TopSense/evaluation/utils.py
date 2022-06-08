@@ -10,11 +10,13 @@ def parse_argument(args):
     reserve = bool(args.r)
     sentence_only = bool(args.s)
     sbert_name = args.sm
-    return filetype, trained_model_name, mfs_bool, topic_only,\
-            reweight, reserve, sentence_only, sbert_name
+    pos_tag = args.pos
+    mark = args.a
+    return filetype, trained_model_name, mfs_bool, topic_only, reweight, 
+            reserve, sentence_only, sbert_name, pos_tag, mark
 
 def print_info(model, mfs_bool, topic_only, reweight, reserve, 
-                sentence_only, sbert_name):
+                sentence_only, sbert_name, pos_tag):
     print('predict topic model:', model)
     print('Is most frequent sense: ', mfs_bool)
     print('Is topic only: ', topic_only)
@@ -22,31 +24,37 @@ def print_info(model, mfs_bool, topic_only, reweight, reserve,
     print('Is reserve: ', reserve)
     print('Is sentence_only: ', sentence_only)
     print('Sbert model:', sbert_name)
+    print('POS tag:', pos_tag)
 
 def load_ans(filetype):
-    with open(f'./TopSense/evaluation/data/{filetype}_sentences_ans.json') as f:
+    filename = f'./TopSense/evaluation/data/{filetype}_sentences_ans.json'
+    with open(filename) as f:
         sent2ans = json.loads(f.read())
     return sent2ans
 
-def load_mfs_data():
-    with open('./TopSense/evaluation/data/first_sense.json') as f:
+def load_mfs_data(filetype):
+    if filetype == 'verb':
+        filename = './TopSense/evaluation/data/verb_first_sense.json'
+    else:
+        filename = './TopSense/evaluation/data/first_sense.json'
+    with open(filename) as f:
         mfs_data = json.loads(f.read())
     return mfs_data
 
 def gen_save_filename(sentence_only, mfs_bool, topic_only, reserve, trained_model_name, 
-                      filetype, reweight, sbert_name):
+                      filetype, reweight, sbert_name, pos_tag, mark):
     directory = trained_model_name.split('/')[-2]
     model_name = trained_model_name.split('/')[-1]
     
     prefix = f'./TopSense/evaluation/results/{directory}/'
     if sentence_only:
-        save_file = f'{prefix}{filetype}_sentence_only_{sbert_name}.tsv'
+        save_file = f'{prefix}{filetype}_sentence_only_{sbert_name}_{pos_tag}{mark}.tsv'
     elif mfs_bool:
-        save_file = f'{prefix}{filetype}_most_frequent.tsv'
+        save_file = f'{prefix}{filetype}_most_frequent_{pos_tag}.tsv'
     elif topic_only:
-        save_file = f'{prefix}{model_name}_{filetype}_reweight{reweight}_reserve{reserve}_topicOnly_{sbert_name}.tsv'
+        save_file = f'{prefix}{model_name}_{filetype}_reweight{reweight}_reserve{reserve}_topicOnly_{sbert_name}_{pos_tag}{mark}.tsv'
     else:
-        save_file = f'{prefix}{model_name}_{filetype}_reweight{reweight}_reserve{reserve}_{sbert_name}.tsv'
+        save_file = f'{prefix}{model_name}_{filetype}_reweight{reweight}_reserve{reserve}_{sbert_name}_{pos_tag}{mark}.tsv'
     print('save file: ', save_file)
     return save_file
 
@@ -62,12 +70,12 @@ def load_data(filetype, mfs_bool):
     with open(filename) as f:
         evaluation_data = json.loads(f.read())
 
-    if filetype in ['100', '200', '300']:
+    if filetype in ['100', '200', '300', 'verb']:
         sent2ans = load_ans(filetype)
     else:
         sent2ans = defaultdict(lambda:' ')
 
-    first_sense = load_mfs_data() if mfs_bool else ''
+    first_sense = load_mfs_data(filetype) if mfs_bool else ''
 
     return evaluation_data, sent2ans, first_sense 
 
@@ -75,6 +83,9 @@ def fetch_ans(filetype, sentence, sent2ans):
     if filetype in ['100', '200', '300']:
         sent = sentence[0]
         ans = sent2ans.get(sent, '')
+    elif filetype == 'verb':
+        sense = sentence[1]
+        ans = sent2ans.get(sense, '')
     else:
         sent, ans = sentence, ''
     return sent, ans

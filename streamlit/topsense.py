@@ -26,8 +26,11 @@ sentence_only = False
 @st.cache(allow_output_mutation=True)
 def initial_class():
     DATA = Data(sbert_name, '../TopSense/data')
-    DISAMBIGUATOR = Disambiguator(DATA, trained_model_name, tokenizer_name,
-                    reserve, sentence_only, reweight, topic_only)
+    word2pos_defs, topic_embs, sense_examples_embs = DATA.load_data()
+    sbert_model = DATA.load_sbert_model()
+    DISAMBIGUATOR = Disambiguator(word2pos_defs, topic_embs, sense_examples_embs,
+                                  sbert_model, trained_model_name, tokenizer_name,
+                                  reserve, sentence_only, reweight, topic_only)
     return DATA, DISAMBIGUATOR
 
 DATA, DISAMBIGUATOR = initial_class()

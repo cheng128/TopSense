@@ -49,8 +49,11 @@ topic_only = False
 sentence_only = False
 
 DATA = Data(sbert_name, '../TopSense/data')
-DISAMBIGUATOR = Disambiguator(DATA, trained_model_name, tokenizer_name,
-                reserve, sentence_only, reweight, topic_only)
+word2pos_defs, topic_embs, sense_examples_embs = DATA.load_data()
+sbert_model = DATA.load_sbert_model()
+DISAMBIGUATOR = Disambiguator(word2pos_defs, topic_embs, sense_examples_embs,
+                              sbert_model, trained_model_name, tokenizer_name,
+                              reserve, sentence_only, reweight, topic_only)
 
 class WSDRequest(BaseModel):
     sentence: dict
