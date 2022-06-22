@@ -1,6 +1,6 @@
 import argparse
 from tqdm import tqdm
-from .utils import *
+from .evaluator_class import Evaluator
 import sys
 from ..disambiguator_class import Disambiguator 
 from ..data_class import Data
