@@ -20,7 +20,7 @@ def brt_groups_results(threshold=0.0, reserve=False, pos_tag='noun'):
     with open(read_file_name) as f:
         data = json.loads(f.read())
     
-    training_filename = f'../data/training_data/{threshold}_{reserve}_{pos_tag}_cambridge.tsv'
+    training_filename = f'../data/training_data/{pos_tag}/{threshold}_{reserve}_{pos_tag}_cambridge.tsv'
     print('save training file:', training_filename)
     
     data_list = []

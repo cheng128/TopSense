@@ -12,7 +12,7 @@ def parse_argument(args):
     sbert_name = args.sm
     pos_tag = args.pos
     mark = args.a
-    return filetype, trained_model_name, mfs_bool, topic_only, reweight, 
+    return filetype, trained_model_name, mfs_bool, topic_only, reweight,\
             reserve, sentence_only, sbert_name, pos_tag, mark
 
 def print_info(model, mfs_bool, topic_only, reweight, reserve, 
@@ -33,8 +33,8 @@ def load_ans(filetype):
     return sent2ans
 
 def load_mfs_data(filetype):
-    if filetype == 'verb':
-        filename = './TopSense/evaluation/data/verb_first_sense.json'
+    if filetype in ['verb', 'adjective']:
+        filename = f'./TopSense/evaluation/data/{filetype}_first_sense.json'
     else:
         filename = './TopSense/evaluation/data/first_sense.json'
     with open(filename) as f:
@@ -59,36 +59,17 @@ def gen_save_filename(sentence_only, mfs_bool, topic_only, reserve, trained_mode
     return save_file
 
 def load_data(filetype, mfs_bool):
-    if filetype == 'mix':
-        filename = './TopSense/evaluation/data/mix_sample.json'
-    elif filetype == 'voa':
-        filename = './TopSense/evaluation/data/voa_sample.json'
-    else:
-        filename = f'./TopSense/evaluation/data/{filetype}_sentences.json'
-        
+    
+    filename = f'./TopSense/evaluation/data/{filetype}_sentences.json'    
     print('load data: ', filename)
+    
     with open(filename) as f:
         evaluation_data = json.loads(f.read())
-
-    if filetype in ['100', '200', '300', 'verb']:
-        sent2ans = load_ans(filetype)
-    else:
-        sent2ans = defaultdict(lambda:' ')
-
+        
+    sent2ans = load_ans(filetype)
     first_sense = load_mfs_data(filetype) if mfs_bool else ''
 
     return evaluation_data, sent2ans, first_sense 
-
-def fetch_ans(filetype, sentence, sent2ans):
-    if filetype in ['100', '200', '300']:
-        sent = sentence[0]
-        ans = sent2ans.get(sent, '')
-    elif filetype == 'verb':
-        sense = sentence[1]
-        ans = sent2ans.get(sense, '')
-    else:
-        sent, ans = sentence, ''
-    return sent, ans
 
 def process_mfs_sense(first_sense, targetword, ans, top_one, mfs_bool, sentence_only, 
                       sent, save_filename):

@@ -80,8 +80,8 @@ def gen_train_test_data(masked_sent, topic_sent, tokenizer):
 
 def write_spec(temp_dir_path, epochs, args, filename, train_loss_record, test_loss_record):
     with open(f'{temp_dir_path}/spec.txt', 'w') as f:
-        f.write(f'python train_MLM_with_validation.py -e {epochs} -g {args.g}
-                    -f {filename} -n {args.n} -r {args.r} -m {args.m} -lr {args.lr}\n')
+        f.write(f'python train_MLM_with_validation.py -e {epochs} -g {args.g}\
+        -f {filename} -n {args.n} -r {args.r} -m {args.m} -lr {args.lr}\n')
         f.write(f'tokenizer: tokenizer_casedFalse \n')
         f.write(f'pretrained model: {args.pre}\n')
         for loss, validate in zip(train_loss_record, test_loss_record):

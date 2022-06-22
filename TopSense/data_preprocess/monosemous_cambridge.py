@@ -1,11 +1,12 @@
 import json
-import spacy
 from collections import defaultdict
 from tqdm import tqdm
 import sys
 sys.path.append('..')
 from util import tokenize_processor
 
+SPACY_MAP = {'ADJ': 'adjective', 'ADV': 'adverb', 'PROPN': 'noun',
+             'PRON': 'noun', 'NOUN': 'noun', 'VERB': 'verb'}
 
 def load_data():
     
@@ -18,7 +19,8 @@ def build_data(cambridge):
     
     cambridge_examples = []
     for line in cambridge:
-        examples = [sent['en'] for sent in line['examples']]
+        examples = [[line['headword'],sent['en']] 
+                    for sent in line['examples']]
         cambridge_examples.extend(examples)
     
     word2data = defaultdict(dict)
@@ -40,18 +42,10 @@ def find_monosemous_word(word2data):
     for headword, pos_data in word2data.items():
         for pos, definitions in pos_data.items():
             if len(definitions) == 1:
-                monosemous[headword][pos] = {'id':'',
+                word_id = definitions[0]['id']
+                monosemous[headword][pos] = {'id': word_id,
                                             'examples':[]}
-                
     return monosemous
-
-def convert_pos(token_pos):
-    if token_pos in ['PROPN', 'PRON', 'NOUN']:
-        pos = 'noun'
-    else:
-        pos = token_pos.lower()
-        
-    return pos
 
 def clear_data(monosemous_data, word2data):
     delete_list = []
@@ -60,6 +54,8 @@ def clear_data(monosemous_data, word2data):
             if not pos_data['examples']:
                 delete_list.append([key, pos])
                 continue
+            else:
+                monosemous_data[key][pos]['examples'] = list(set(pos_data['examples']))
 
     for key, pos in delete_list:
         if len(monosemous_data[key]) == 1:
@@ -83,17 +79,16 @@ def main():
     cambridge_examples, word2data = build_data(cambridge)
     monosemous = find_monosemous_word(word2data)
     
-    for example in tqdm(cambridge_examples):
+    for headword, example in tqdm(cambridge_examples):
         sent_tokens = tokenize_processor(example)
         for token in sent_tokens:
-            headword = token['lemma']
-            token_pos = convert_pos(token['pos'])
-            if headword in monosemous and token_pos in monosemous[headword]:
-                monosemous[headword][token_pos]['examples'].append(example)
-                data = word2data[headword][token_pos]
-                assert(len(data) == 1)
-                word_id = data[0]['id']
-                monosemous[headword][token_pos]['id'] = word_id
+            target = token['lemma']
+            # is not one of the origin examples
+            if headword.lower() != target.lower():
+                token_pos = SPACY_MAP.get(token['pos'], '')
+                if token_pos:
+                    if target in monosemous and token_pos in monosemous[target]:
+                        monosemous[target][token_pos]['examples'].append(example)
 
     clear_data(monosemous, word2data)
     save_data(monosemous, '../data/monosemous_data.json', word2data, '../data/cambridge_word2data.json')

@@ -8,8 +8,8 @@ from ..util import tokenize_processor
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', type=str) # evaluation data: 100, 200, 300
-    parser.add_argument('-m', type=str)
+    parser.add_argument('-f', type=str) # evaluation data
+    parser.add_argument('-m', type=str) # fine-tuned model
     parser.add_argument('-r', type=int, default=0)  # reserve target word
     parser.add_argument('-s', type=int, default=0)  # sentence only
     parser.add_argument('-mfs', type=int, default=0) # most frequent sense
@@ -22,12 +22,13 @@ def main():
     
     # we can only choose one type from below at a time
     assert((args.mfs + args.s + args.t) <= 1)
+    assert(args.f in ['100', '200', '300', 'verb', 'adjective', 'adverb'])
 
-    filetype, trained_model_name, mfs_bool, topic_only, reweight, reserve, 
+    filetype, trained_model_name, mfs_bool, topic_only, reweight, reserve,\
     sentence_only, sbert_name, pos_tag, mark = parse_argument(args)
     tokenizer_name = './TopSense/tokenizer_casedFalse'
 
-    DATA = Data(sbert_name, './TopSense/data')
+    DATA = Data(sbert_name, './TopSense/data', 'cpu')
     word2pos_defs, topic_embs, sense_examples_embs = DATA.load_data()
     sbert_model = DATA.load_sbert_model()
      
@@ -51,23 +52,24 @@ def main():
 
     total_count, rank_score, top_one = 0, 0, 0
     for targetword, sentences in tqdm(evaluation_data.items()):
-        for sentence in sentences:
-            sent, ans = fetch_ans(filetype, sentence, sent2ans)
-            if filetype in ['100', '200', '300', 'verb'] and not ans:
+        for ans_key, sent in sentences:
+            ans = sent2ans.get(ans_key, '')
+            print(ans)
+            if not ans:
                 continue
             # if it is most frequent sense
             if mfs_bool:
                 top_one = process_mfs_sense(first_sense, targetword, ans, top_one, mfs_bool, 
                                             sentence_only, sent, targetword, save_filename)
             else:
-                tokens = tokenize_processor(sentence[0])
+                tokens = tokenize_processor(sent)
                 results, masked_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(tokens,
-                                                                                            sentence[0], 
+                                                                                            sent, 
                                                                                             pos_tag, 
                                                                                             targetword)
                 if not results and pos_tag == 'noun':
                     results, masked_sent, token_scores = DISAMBIGUATOR.predict_and_disambiguate(tokens,
-                                                                                                sentence[0],
+                                                                                                sent,
                                                                                                 'propn', 
                                                                                                 targetword)
                 

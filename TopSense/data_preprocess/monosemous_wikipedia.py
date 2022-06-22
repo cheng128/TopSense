@@ -8,6 +8,8 @@ sys.path.append('..')
 from util import tokenize_processor
 
 tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+SPACY_MAP = {'ADJ': 'adjective', 'ADV': 'adverb', 'PROPN': 'noun',
+             'PRON': 'noun', 'NOUN': 'noun', 'VERB': 'verb'}
 
 def main():
     cambridge = load_data()
@@ -21,23 +23,19 @@ def main():
 
             sentences = tokenizer.tokenize(article)
             
-            for sent in sentences:
+            for linked_sent in sentences:
+                sent = BeautifulSoup(linked_sent, 'lxml').text
                 sent_tokens = tokenize_processor(sent)
                 for token in sent_tokens:
                     headword = token['lemma']
-                    token_pos = convert_pos(token['pos'])
-                    if headword in monosemous and token_pos in monosemous[headword]:
-                        monosemous[headword][token_pos]['examples'].append(sent)
-                        data = word2data[headword][token_pos]
-                        assert(len(data) == 1)
-                        word_id = data[0]['id']
-                        monosemous[headword][token_pos]['id'] = word_id
+                    token_pos = SPACY_MAP.get(token['pos'], '')
+                    if token_pos:
+                        if headword in monosemous and token_pos in monosemous[headword]:
+                            monosemous[headword][token_pos]['examples'].append(sent)
 
     clear_data(monosemous, word2data)
     save_data(monosemous, '../data/wiki/wikipedia_monosemous.json',
               word2data, '../data/wiki/cambridge_word2data.json')
                 
-    
-    
 if __name__ == '__main__':
     main()
