@@ -4,7 +4,7 @@ import argparse
 from tqdm import tqdm
 
 def load_data():
-    with open('../data/wiki/wikipedia_monosemous.json') as f:
+    with open('../data/wiki/all_wikipedia_monosemous.json') as f:
         monosemous_data = json.load(f)
     return monosemous_data
 

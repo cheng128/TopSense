@@ -1,11 +1,10 @@
 import json
 import pickle
-import spacy
 from sentence_transformers import SentenceTransformer
 
 class Data:
     
-    def __init__(self, model_name, data_directory, device='gpu'):
+    def __init__(self, model_name, data_directory, device='cpu'):
         self.model_name = model_name
         self.data_directory = data_directory
         self.device = device

@@ -56,7 +56,7 @@ class Evaluator:
         directory = trained_model.split('/')[-2]
         model_name = trained_model.split('/')[-1]
         
-        prefix = f'./TopSense/evaluation/results/{directory}'
+        prefix = f'./TopSense/evaluation/results/{pos}/{directory}'
         if self.sentence_only:
             save_file = f'{prefix}/{pos}_sentence_only_{sbert}_{mark}.tsv'
         elif self.mfs_bool:

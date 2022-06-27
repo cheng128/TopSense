@@ -24,8 +24,9 @@ def update_list(reserve, reconstruct, topic_construct, token, topic):
     return reconstruct, topic_construct
 
 def gen_masked_sent(sent_list, pos_tag, targetword, reserve, topic=''):
+    pos_map = {'propn': 'noun', 'pron': 'noun', 'adverb': 'adv', 'adjective': 'adj'}
     
-    pos_tag = 'noun' if pos_tag.lower() in ['propn', 'pron'] else pos_tag.lower()
+    pos_tag = pos_map[pos_tag]
     reconstruct = []
     topic_construct = []
     find = False

@@ -1,0 +1,9 @@
+json
+spacy
+torch
+numpy
+pickle
+uvicorn
+fastapi
+transformers
+sentence-transformers

@@ -43,7 +43,7 @@ reweight = True
 topic_only = False
 sentence_only = False
 
-DATA = Data(sbert_name, '../TopSense/data', 'cpu')
+DATA = Data(sbert_name, '../TopSense/data')
 word2pos_defs, topic_embs, sense_examples_embs = DATA.load_data()
 sbert_model = DATA.load_sbert_model()
 

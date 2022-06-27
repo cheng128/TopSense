@@ -25,7 +25,7 @@ def main():
         with open(f'{base_dir}/{directory}/wiki_{number}_monosemous_{threshold}_{reserve}.tsv') as h:
             for line in h.readlines():
                 f.write(line)
-         
+        
         with open(f'{base_dir}/{directory}/cam_all_monosemous_{threshold}_{reserve}.tsv') as d:
             for line in d.readlines():
                 if len(line.split('\t')) == 3:

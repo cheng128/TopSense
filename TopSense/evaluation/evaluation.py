@@ -24,7 +24,7 @@ def main():
 
     EVALUATOR = Evaluator(args)    
     EVALUATOR.print_info()
- 
+    
     evaluation_data, sent2ans, first_sense = EVALUATOR.load_data()
     save_filename = EVALUATOR.gen_save_filename()
 
@@ -57,7 +57,7 @@ def main():
                                                                                                 sentence,
                                                                                                 'propn', 
                                                                                                 targetword)
-                
+
                 senses = [line[0].replace('\n', '').strip() for line in results]
                 if ans.endswith(senses[0]):
                     top_one += 1
