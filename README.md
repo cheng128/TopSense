@@ -1,5 +1,5 @@
 # TopSense
-A Word Sence Disambiguation System.
+A Word Sense Disambiguation System.
 ## Step 1
 Map Roget's thesaurus (BRT) to Cambridge dictionary   
 ### 1-1 Use part of BRT data to check the result

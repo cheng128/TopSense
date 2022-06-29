@@ -29,7 +29,7 @@ def main():
     save_filename = EVALUATOR.gen_save_filename()
 
     tokenizer_name = './TopSense/tokenizer_casedFalse'
-    DATA = Data(args.sm, './TopSense/data', 'cpu')
+    DATA = Data(args.sm, './TopSense/data')
     word2pos_defs, topic_embs, sense_examples_embs = DATA.load_data()
     sbert_model = DATA.load_sbert_model()
      
