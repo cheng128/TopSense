@@ -24,9 +24,9 @@ def update_list(reserve, reconstruct, topic_construct, token, topic):
     return reconstruct, topic_construct
 
 def gen_masked_sent(sent_list, pos_tag, targetword, reserve, topic=''):
-    pos_map = {'propn': 'noun', 'pron': 'noun', 'noun': 'noun', 'verb': 'verb', 'adverb': 'adv', 'adjective': 'adj'}
+    pos_map = {'propn': 'noun', 'pron': 'noun', 'adverb': 'adv', 'adjective': 'adj'}
     
-    pos_tag = pos_map[pos_tag.lower()]
+    pos_tag = pos_map.get(pos_tag.lower(), pos_tag.lower())
     reconstruct = []
     topic_construct = []
     find = False

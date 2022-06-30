@@ -1,6 +1,8 @@
 import json
 from collections import defaultdict
 
+pos_map = {'adjective': 'adj', 'adverb': 'adv'}
+
 def main():
     with open('../data/cambridge.sense.000.jsonl') as f:
         cambridge = [json.loads(line) for line in f.readlines()]
@@ -10,7 +12,7 @@ def main():
     for line in cambridge:
         headword = line['headword']
         definition = line['en_def']
-        pos = line['pos']
+        pos = pos_map.get(line['pos'], line['pos'])
         if pos not in words2def[headword]: 
             words2def[headword][pos] = []
 

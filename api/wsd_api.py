@@ -34,9 +34,11 @@ def load_data():
 word_sense2chdef_level, orig_new = load_data()
 
 sbert_name = 'sentence-t5-xl'
-noun_trained_model_name = '../TopSense/model/hybrid/wiki_reserve_new_20_True_4epochs_1e-05' 
+noun_trained_model_name = '../TopSense/model/noun/hybrid/wiki_reserve_new_20_True_4epochs_1e-05' 
 # trained_model_name = '../TopSense/model/hybrid/verb_noun_wiki_all_True_15epochs_1e-05'
-verb_trained_model_name = '../TopSense/model/hybrid/monosemous_verb_all_True_6epochs_1e-05'
+verb_trained_model_name = '../TopSense/model/verb/hybrid/monosemous_verb_all_True_6epochs_1e-05'
+adj_trained_model_name = '../TopSense/model/adjective/hybrid/adjective_all_True_7epochs_1e-05'
+adv_trained_model_name = '../TopSense/model/adverb/hybrid/adverb_all_True_10epochs_1e-05'
 tokenizer_name = '../TopSense/tokenizer_casedFalse'
 reserve = True
 reweight = True
@@ -47,13 +49,16 @@ DATA = Data(sbert_name, '../TopSense/data')
 word2pos_defs, topic_embs, sense_examples_embs = DATA.load_data()
 sbert_model = DATA.load_sbert_model()
 
-NOUN_DISAMBIGUATOR = Disambiguator(word2pos_defs, topic_embs, sense_examples_embs, 
-                                   sbert_model, noun_trained_model_name, tokenizer_name,
-                                   reserve, sentence_only, reweight, topic_only)
 
-VERB_DISAMBIGUATOR = Disambiguator(word2pos_defs, topic_embs, sense_examples_embs, 
-                                   sbert_model, verb_trained_model_name, tokenizer_name,
-                                   reserve, sentence_only, reweight, topic_only)
+def load_wsd_model(trained_model_name):
+    return Disambiguator(word2pos_defs, topic_embs, sense_examples_embs,
+                        sbert_model, trained_model_name, tokenizer_name,
+                        reserve, sentence_only, reweight, topic_only)
+
+NOUN_DISAMBIGUATOR = load_wsd_model(noun_trained_model_name)
+VERB_DISAMBIGUATOR = load_wsd_model(verb_trained_model_name)
+ADJ_DISAMBIGUATOR = load_wsd_model(adj_trained_model_name)
+ADV_DISAMBIGUATOR = load_wsd_model(adv_trained_model_name)
 
 class WSDRequest(BaseModel):
     sentence: dict
@@ -91,7 +96,7 @@ def wsd_sentence(item: WSDRequest):
     
     target_words = [(idx, token['pos'], token['lemma']) 
                     for idx, token in enumerate(tokens)
-                    if token['pos'] in ['NOUN', 'PROPN', 'VERB']]
+                    if token['pos'] in ['NOUN', 'PROPN', 'VERB', 'ADJ', 'ADV']]
 
 
     for idx, pos, targetword in target_words:
@@ -102,6 +107,16 @@ def wsd_sentence(item: WSDRequest):
                                                                                                 targetword)
         elif pos in ['VERB']: 
             ranked_senses, masked_sent, token_scores = VERB_DISAMBIGUATOR.predict_and_disambiguate(tokens,
+                                                                                                input_sentence, 
+                                                                                                pos,
+                                                                                                targetword)
+        elif pos in ['ADJ']: 
+            ranked_senses, masked_sent, token_scores = ADJ_DISAMBIGUATOR.predict_and_disambiguate(tokens,
+                                                                                                input_sentence, 
+                                                                                                pos,
+                                                                                                targetword)
+        elif pos in ['ADV']: 
+            ranked_senses, masked_sent, token_scores = ADV_DISAMBIGUATOR.predict_and_disambiguate(tokens,
                                                                                                 input_sentence, 
                                                                                                 pos,
                                                                                                 targetword)

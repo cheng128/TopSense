@@ -90,13 +90,12 @@ class Disambiguator:
         elif not definitions: 
             return []
         def_sent_score = self.calculate_def_sent_score(targetword, pos_tag, input_sentence)
-
         if self.sentence_only:
             sorted_score = sorted(def_sent_score.items(), key=lambda x: x[1], reverse=True)
             return sorted_score
         weight_scores = defaultdict(lambda: 0)
         for topic, confidence in token_scores.items():
-            topic_emb = self.topic_embs_map.get(topic, None)
+            topic_emb = self.topic_embs_map.get((topic, pos_tag), None)
             if topic_emb != None:
                 for sense in definitions:
                     index = self.sense_examples_embs[(targetword, pos_tag)]['senses'].index(sense)
